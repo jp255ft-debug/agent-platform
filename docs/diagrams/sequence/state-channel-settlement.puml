@@ -1,0 +1,15 @@
+@startuml
+actor Agent
+participant "State Channel" as SC
+participant "EVM" as EVM
+participant "Backend" as BE
+
+Agent -> SC: open channel (deposit)
+SC -> EVM: deploy channel contract
+EVM --> SC: channel address
+Agent -> SC: off-chain state updates
+Agent -> SC: close channel
+SC -> EVM: submit final state
+EVM --> SC: settlement tx
+SC -> BE: notify settlement
+@enduml

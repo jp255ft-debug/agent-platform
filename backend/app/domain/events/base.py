@@ -1,0 +1,23 @@
+"""Base domain event."""
+from datetime import datetime
+from uuid import uuid4
+from typing import Dict, Any
+
+class DomainEvent:
+    def __init__(self, aggregate_id: str, data: Dict[str, Any] | None = None):
+        self.event_id: str = str(uuid4())
+        self.aggregate_id: str = aggregate_id
+        self.occurred_at: datetime = datetime.utcnow()
+        self.data: Dict[str, Any] = data or {}
+
+    def event_type(self) -> str:
+        return self.__class__.__name__
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "event_type": self.event_type(),
+            "aggregate_id": self.aggregate_id,
+            "occurred_at": self.occurred_at.isoformat(),
+            "data": self.data,
+        }

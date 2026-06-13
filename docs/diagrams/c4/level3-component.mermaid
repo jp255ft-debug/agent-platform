@@ -1,0 +1,32 @@
+graph TD
+    subgraph API Layer
+        Agents[Agents Endpoint]
+        Consume[Consume Endpoint]
+        Invoices[Invoices Endpoint]
+        Health[Health Endpoint]
+    end
+    subgraph Application Layer
+        CmdHandlers[Command Handlers]
+        EventHandlers[Event Handlers]
+        Services[Application Services]
+    end
+    subgraph Domain Layer
+        Aggregates[Aggregates]
+        Events[Domain Events]
+        Repos[Repository Interfaces]
+    end
+    subgraph Infrastructure
+        EventStore[Postgres Event Store]
+        Cache[Redis Cache]
+        Msg[Kafka Messaging]
+        BC[Blockchain Clients]
+    end
+    Agents --> CmdHandlers
+    Consume --> CmdHandlers
+    CmdHandlers --> Aggregates
+    Aggregates --> Events
+    Events --> EventHandlers
+    EventHandlers --> EventStore
+    EventHandlers --> Cache
+    EventHandlers --> Msg
+    EventHandlers --> BC

@@ -1,0 +1,8 @@
+graph TD
+    User[User/Agent] -->|HTTP/x402| API[API Gateway]
+    API --> Backend[Backend Service]
+    Backend --> Postgres[(PostgreSQL)]
+    Backend --> Redis[(Redis)]
+    Backend --> Kafka[Kafka]
+    Backend --> EVM[EVM Blockchain]
+    Backend --> TSDB[(TimescaleDB)]

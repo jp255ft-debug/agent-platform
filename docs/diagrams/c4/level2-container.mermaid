@@ -1,0 +1,23 @@
+graph TD
+    subgraph Backend Container
+        API[FastAPI]
+        WS[WebSocket]
+        Worker[Background Worker]
+    end
+    subgraph Data
+        PG[(PostgreSQL)]
+        RD[(Redis)]
+        TS[(TimescaleDB)]
+    end
+    subgraph Messaging
+        K[Kafka]
+    end
+    subgraph Blockchain
+        EVM[EVM Node]
+    end
+    API --> PG
+    API --> RD
+    API --> K
+    Worker --> PG
+    Worker --> TS
+    API --> EVM

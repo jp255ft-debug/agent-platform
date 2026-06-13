@@ -1,0 +1,68 @@
+# =============================================================================
+# Agent Platform — .gitignore
+# =============================================================================
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Solidity / Foundry
+contracts/out/
+contracts/cache/
+contracts/lib/
+
+# Foundry binaries (local install)
+forge.exe
+cast.exe
+anvil.exe
+chisel.exe
+foundry.zip
+foundry.lock
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Generated files
+tree_clean2.txt
+out/
+cache/

@@ -1,0 +1,43 @@
+{
+  "manifest_version": "1.0.0",
+  "description": "Context manifest for agent-platform AI agent sessions. This file acts as a lockfile, recording exactly which context files were loaded during a session for reproducibility.",
+  "schema": "docs/context/context_manifest_schema.json",
+  "fields": {
+    "version": "Schema version of this manifest",
+    "timestamp": "ISO 8601 timestamp of session start",
+    "mode": "PLAN_MODE or ACT_MODE",
+    "task_description": "Brief description of the task being executed",
+    "loaded_contexts": [
+      "List of context files loaded during this session"
+    ],
+    "generated_files": [
+      "List of files generated or modified during this session"
+    ],
+    "validation_results": {
+      "passed": "Number of validation checks passed",
+      "failed": "Number of validation checks failed",
+      "warnings": "Number of warnings"
+    }
+  },
+  "example": {
+    "version": "1.0.0",
+    "timestamp": "2026-06-10T14:30:00-03:00",
+    "mode": "ACT_MODE",
+    "task_description": "Implement AgentDelegation.sol contract",
+    "loaded_contexts": [
+      ".ai/AGENTS.md",
+      ".ai/knowledge-base/solidity_patterns.md",
+      ".ai/knowledge-base/architecture_patterns.md",
+      "docs/adr/ADR-002-delegation-eip7702.md"
+    ],
+    "generated_files": [
+      "contracts/src/AgentDelegation.sol",
+      "contracts/test/AgentDelegation.t.sol"
+    ],
+    "validation_results": {
+      "passed": 5,
+      "failed": 0,
+      "warnings": 1
+    }
+  }
+}

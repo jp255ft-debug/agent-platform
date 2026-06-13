@@ -1,0 +1,15 @@
+@startuml
+actor Agent
+participant "API Gateway" as API
+participant "Rate Limiter" as RL
+participant "Event Store" as ES
+participant "Blockchain" as BC
+
+Agent -> API: POST /consume (x402 payment)
+API -> RL: check rate limit
+RL --> API: allowed
+API -> ES: append ResourceConsumed event
+API -> BC: verify x402 payment
+BC --> API: payment confirmed
+API --> Agent: 200 OK (receipt)
+@enduml

@@ -1,0 +1,13 @@
+@startuml
+actor Agent
+participant "Node Service" as NS
+participant "EVM" as EVM
+participant "Backend" as BE
+
+Agent -> NS: x402 Payment Request
+NS -> EVM: verify signature and balance
+EVM --> NS: valid
+NS -> BE: notify payment
+BE --> NS: receipt
+NS --> Agent: 200 OK
+@enduml

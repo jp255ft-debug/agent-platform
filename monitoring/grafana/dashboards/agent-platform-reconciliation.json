@@ -1,0 +1,211 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "Agent Platform - Reconciliation",
+  "uid": "agent-platform-reconciliation",
+  "version": 1,
+  "schemaVersion": 36,
+  "tags": ["agent-platform", "reconciliation"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "15m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "postgres",
+        "current": {
+          "value": "PostgreSQL"
+        },
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "title": "Last Reconciliation Status",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT CASE WHEN COUNT(*) = 0 THEN 'No Data' ELSE 'Running' END AS status FROM events WHERE event_type = 'ReconciliationRun' AND occurred_at >= NOW() - INTERVAL '2 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Discrepancy Rate (24h)",
+      "type": "stat",
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT COALESCE(ROUND(AVG((data->>'discrepancy_rate')::numeric) * 100, 2), 0) AS value FROM events WHERE event_type = 'ReconciliationRun' AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.1},
+              {"color": "red", "value": 0.5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "On-Chain Only Records",
+      "type": "stat",
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT COALESCE(SUM((data->>'on_chain_only')::int), 0) AS value FROM events WHERE event_type = 'ReconciliationRun' AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Off-Chain Only Records",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT COALESCE(SUM((data->>'off_chain_only')::int), 0) AS value FROM events WHERE event_type = 'ReconciliationRun' AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Amount Mismatches",
+      "type": "stat",
+      "gridPos": {"x": 16, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT COALESCE(SUM((data->>'amount_mismatches')::int), 0) AS value FROM events WHERE event_type = 'ReconciliationRun' AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 3}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Discrepancy Rate Over Time",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT occurred_at AS time, (data->>'discrepancy_rate')::numeric * 100 AS discrepancy_rate FROM events WHERE event_type = 'ReconciliationRun' AND occurred_at >= NOW() - INTERVAL '7 days' ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {"lineInterpolation": "smooth"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.1},
+              {"color": "red", "value": 0.5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Unmatched Records Over Time",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT occurred_at AS time, (data->>'on_chain_only')::int AS on_chain_only, (data->>'off_chain_only')::int AS off_chain_only, (data->>'amount_mismatches')::int AS amount_mismatches FROM events WHERE event_type = 'ReconciliationRun' AND occurred_at >= NOW() - INTERVAL '7 days' ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"lineInterpolation": "smooth"}
+        }
+      }
+    },
+    {
+      "title": "Reconciliation Summary Table",
+      "type": "table",
+      "gridPos": {"x": 0, "y": 12, "w": 24, "h": 10},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT occurred_at AS time, data->>'run_id' AS run_id, data->>'total_on_chain' AS on_chain, data->>'total_off_chain' AS off_chain, data->>'matched' AS matched, data->>'on_chain_only' AS on_chain_only, data->>'off_chain_only' AS off_chain_only, data->>'amount_mismatches' AS amount_mismatches, data->>'discrepancy_rate' AS discrepancy_rate, data->>'is_healthy' AS is_healthy FROM events WHERE event_type = 'ReconciliationRun' AND occurred_at >= NOW() - INTERVAL '7 days' ORDER BY occurred_at DESC LIMIT 50",
+          "format": "table"
+        }
+      ]
+    }
+  ]
+}

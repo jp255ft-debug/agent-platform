@@ -1,0 +1,152 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "Agent Platform - Performance",
+  "uid": "agent-platform-performance",
+  "version": 1,
+  "schemaVersion": 36,
+  "tags": ["agent-platform", "performance"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "1m",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "postgres",
+        "current": {
+          "value": "PostgreSQL"
+        },
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "title": "API Throughput",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT time_bucket('1 minute', timestamp) AS time, COUNT(*) AS requests_per_min FROM metrics WHERE timestamp >= NOW() - INTERVAL '1 hour' GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {"lineInterpolation": "smooth"}
+        }
+      }
+    },
+    {
+      "title": "API Latency (P50/P95/P99)",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT time_bucket('1 minute', timestamp) AS time, AVG(response_time_ms)::int AS avg_latency, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY response_time_ms) AS p50, PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY response_time_ms) AS p95, PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY response_time_ms) AS p99 FROM metrics WHERE timestamp >= NOW() - INTERVAL '1 hour' GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {"lineInterpolation": "smooth"}
+        }
+      }
+    },
+    {
+      "title": "Error Rate by Endpoint",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT time_bucket('5 minutes', timestamp) AS time, endpoint, COUNT(*) FILTER (WHERE status_code >= 500) AS server_errors, COUNT(*) FILTER (WHERE status_code >= 400 AND status_code < 500) AS client_errors FROM metrics WHERE timestamp >= NOW() - INTERVAL '1 hour' GROUP BY time, endpoint ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"lineInterpolation": "smooth"}
+        }
+      }
+    },
+    {
+      "title": "Blockchain Gas Usage",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT time_bucket('1 hour', timestamp) AS time, operation, AVG(gas_used)::int AS avg_gas FROM blockchain_metrics WHERE timestamp >= NOW() - INTERVAL '24 hours' GROUP BY time, operation ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"lineInterpolation": "smooth"}
+        }
+      }
+    },
+    {
+      "title": "Redis Cache Hit Rate",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT time_bucket('5 minutes', timestamp) AS time, ROUND(100.0 * COUNT(*) FILTER (WHERE cache_hit = true) / NULLIF(COUNT(*), 0), 2) AS hit_rate FROM redis_metrics WHERE timestamp >= NOW() - INTERVAL '1 hour' GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {"lineInterpolation": "smooth"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 80},
+              {"color": "green", "value": 95}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Kafka Consumer Lag",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT time_bucket('5 minutes', timestamp) AS time, topic, MAX(lag) AS max_lag FROM kafka_metrics WHERE timestamp >= NOW() - INTERVAL '1 hour' GROUP BY time, topic ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"lineInterpolation": "smooth"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 100},
+              {"color": "red", "value": 1000}
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

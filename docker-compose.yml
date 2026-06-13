@@ -1,0 +1,303 @@
+# =============================================================================
+# Agent Platform — Docker Compose
+# =============================================================================
+# Usage:
+#   docker compose up -d                    # Start all core services
+#   docker compose up -d --profile full     # Start all services (incl. monitoring)
+#   docker compose logs -f backend          # Follow backend logs
+#   docker compose down -v                  # Stop and remove volumes
+# =============================================================================
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-healthcheck-postgres: &healthcheck-postgres
+  test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent_user} -d ${POSTGRES_DB:-agent_platform}"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 30s
+
+x-healthcheck-redis: &healthcheck-redis
+  test: ["CMD", "redis-cli", "ping"]
+  interval: 10s
+  timeout: 3s
+  retries: 5
+  start_period: 10s
+
+x-healthcheck-kafka: &healthcheck-kafka
+  test: ["CMD-SHELL", "/usr/bin/kafka-topics --bootstrap-server localhost:9093 --list"]
+  interval: 15s
+  timeout: 10s
+  retries: 10
+  start_period: 60s
+
+# =============================================================================
+services:
+  # ─── PostgreSQL (Event Store + Application Data) ──────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: agent-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agent_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-agent_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
+      TZ: UTC
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck: *healthcheck-postgres
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+  # ─── Redis (Cache, Rate Limiting, Idempotency) ────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: agent-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server
+      --appendonly no
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+    healthcheck: *healthcheck-redis
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+  # ─── Zookeeper (Kafka Coordinator) ────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: agent-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+  # ─── Kafka (Event Streaming) ──────────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: agent-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_started
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_RETENTION_BYTES: 1073741824
+      KAFKA_MESSAGE_MAX_BYTES: 1048576
+    healthcheck: *healthcheck-kafka
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+  # ─── Backend (FastAPI) ────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agent-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+      - "${PROMETHEUS_PORT:-8001}:8001"
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-agent_user}:${POSTGRES_PASSWORD:-changeme_in_production}@postgres:5432/${POSTGRES_DB:-agent_platform}
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-agent-platform-consumer}
+      KAFKA_AUTO_OFFSET_RESET: ${KAFKA_AUTO_OFFSET_RESET:-earliest}
+      # Backend
+      BACKEND_HOST: ${BACKEND_HOST:-0.0.0.0}
+      BACKEND_PORT: ${BACKEND_PORT:-8000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+      # Blockchain
+      WEB3_PROVIDER_URL: ${WEB3_PROVIDER_URL:-https://sepolia.base.org}
+      CHAIN_ID: ${CHAIN_ID:-84532}
+      AGENT_DELEGATION_CONTRACT: ${AGENT_DELEGATION_CONTRACT:-0x0000000000000000000000000000000000000000}
+      PAYMENT_VERIFIER_CONTRACT: ${PAYMENT_VERIFIER_CONTRACT:-0x0000000000000000000000000000000000000000}
+      REPUTATION_SBT_CONTRACT: ${REPUTATION_SBT_CONTRACT:-0x0000000000000000000000000000000000000000}
+      OPERATOR_PRIVATE_KEY: ${OPERATOR_PRIVATE_KEY:-}
+      # Rate Limiting
+      RATE_LIMIT_REQUESTS_PER_MINUTE: ${RATE_LIMIT_REQUESTS_PER_MINUTE:-60}
+      RATE_LIMIT_BURST_SIZE: ${RATE_LIMIT_BURST_SIZE:-100}
+      # Security
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-random-secret-at-least-32-chars-long}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-60}
+      # Monitoring
+      ENABLE_METRICS: ${ENABLE_METRICS:-true}
+    volumes:
+      # Hot-reload in development: mount the app directory
+      - ./backend/app:/app/app:ro
+      - ./backend/migrations:/app/migrations:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+  # ─── Kafka Topics Initializer ─────────────────────────────────────────────
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: agent-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      echo 'Creating Kafka topics...'
+      /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic agent.registered --partitions 3 --replication-factor 1
+      /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic agent.delegated --partitions 3 --replication-factor 1
+      /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic agent.reputation --partitions 3 --replication-factor 1
+      /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic billing.resource.consumed --partitions 3 --replication-factor 1
+      /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic billing.session.settled --partitions 3 --replication-factor 1
+      /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic billing.invoice.generated --partitions 3 --replication-factor 1
+      /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic billing.invoice.paid --partitions 3 --replication-factor 1
+      /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.verified --partitions 3 --replication-factor 1
+      echo 'All topics created successfully!'
+      "
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+# =============================================================================
+# ─── Optional Services (enable with --profile full) ──────────────────────────
+# =============================================================================
+
+  # ─── TimescaleDB (Analytics) ──────────────────────────────────────────────
+  timescaledb:
+    profiles: ["full"]
+    image: timescale/timescaledb:2.13-pg15
+    container_name: agent-timescaledb
+    restart: unless-stopped
+    ports:
+      - "${TIMESCALE_PORT:-5433}:5432"
+    environment:
+      POSTGRES_DB: ${TIMESCALE_DB:-agent_analytics}
+      POSTGRES_USER: ${TIMESCALE_USER:-agent_user}
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-changeme_in_production}
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+      - ./timescaledb/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck: *healthcheck-postgres
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+  # ─── Prometheus (Metrics Collection) ──────────────────────────────────────
+  prometheus:
+    profiles: ["full"]
+    image: prom/prometheus:v2.48.0
+    container_name: agent-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+  # ─── Grafana (Dashboards) ─────────────────────────────────────────────────
+  grafana:
+    profiles: ["full"]
+    image: grafana/grafana:10.2.2
+    container_name: agent-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+  # ─── Kafka UI (Web Interface for Kafka) ───────────────────────────────────
+  kafka-ui:
+    profiles: ["full"]
+    image: provectuslabs/kafka-ui:v0.7.1
+    container_name: agent-kafka-ui
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: agent-platform
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      - kafka
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+# =============================================================================
+volumes:
+  postgres-data:
+    driver: local
+  timescaledb-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  agent-platform-network:
+    name: agent-platform-network
+    driver: bridge

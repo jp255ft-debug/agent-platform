@@ -1,0 +1,260 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "Agent Platform - Overview",
+  "uid": "agent-platform-overview",
+  "version": 1,
+  "schemaVersion": 36,
+  "tags": ["agent-platform", "overview"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "5m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "postgres",
+        "current": {
+          "value": "PostgreSQL"
+        },
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "title": "Daily Active Agents",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT COUNT(DISTINCT aggregate_id) AS value FROM events WHERE occurred_at >= NOW() - INTERVAL '24 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "green", "value": 10}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Revenue (24h)",
+      "type": "stat",
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT COALESCE(SUM((data->>'amount')::numeric), 0) AS value FROM events WHERE event_type = 'BillingSessionCompleted' AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "wei",
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 0},
+              {"color": "green", "value": 1000000000000000}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Payment Success Rate",
+      "type": "stat",
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE event_type = 'PaymentVerified') / NULLIF(COUNT(*), 0), 2) AS value FROM events WHERE event_type IN ('PaymentVerified', 'PaymentFailed') AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 95},
+              {"color": "green", "value": 99}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Active Delegations",
+      "type": "stat",
+      "gridPos": {"x": 12, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT COUNT(*) AS value FROM events WHERE event_type = 'AgentDelegated' AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "green", "value": 5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Pending Disputes",
+      "type": "stat",
+      "gridPos": {"x": 16, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT COUNT(*) AS value FROM events WHERE event_type = 'DisputeRaised' AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 3}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Revenue Over Time",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, SUM((data->>'amount')::numeric) AS revenue FROM events WHERE event_type = 'BillingSessionCompleted' AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "wei",
+          "custom": {"lineInterpolation": "smooth"}
+        }
+      }
+    },
+    {
+      "title": "Active Agents Over Time",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, COUNT(DISTINCT aggregate_id) AS active_agents FROM events WHERE occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"lineInterpolation": "smooth"}
+        }
+      }
+    },
+    {
+      "title": "Resource Consumption by Type",
+      "type": "barchart",
+      "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT data->>'resource_type' AS resource_type, COUNT(*) AS count, SUM((data->>'amount')::numeric) AS total FROM events WHERE event_type = 'ResourceConsumed' AND occurred_at >= NOW() - INTERVAL '24 hours' GROUP BY resource_type ORDER BY total DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Top Agents by Revenue",
+      "type": "table",
+      "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT aggregate_id AS agent, COUNT(*) AS sessions, SUM((data->>'amount')::numeric) AS revenue, MAX(occurred_at) AS last_active FROM events WHERE event_type = 'BillingSessionCompleted' AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY aggregate_id ORDER BY revenue DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "title": "Payment Success Rate Over Time",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, ROUND(100.0 * COUNT(*) FILTER (WHERE event_type = 'PaymentVerified') / NULLIF(COUNT(*), 0), 2) AS success_rate FROM events WHERE event_type IN ('PaymentVerified', 'PaymentFailed') AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {"lineInterpolation": "smooth"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 95},
+              {"color": "green", "value": 99}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Delegation Events",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, COUNT(*) FILTER (WHERE event_type = 'AgentDelegated') AS delegations_created, COUNT(*) FILTER (WHERE event_type = 'AgentDelegationRevoked') AS delegations_revoked FROM events WHERE event_type IN ('AgentDelegated', 'AgentDelegationRevoked') AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"lineInterpolation": "smooth"}
+        }
+      }
+    }
+  ]
+}

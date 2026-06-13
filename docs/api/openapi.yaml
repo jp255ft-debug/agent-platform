@@ -1,0 +1,62 @@
+openapi: 3.0.3
+info:
+  title: Agent Platform API
+  version: 0.1.0
+  description: API for autonomous agent resource consumption and billing
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /api/v1/agents:
+    post:
+      summary: Register a new agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRegistration'
+      responses:
+        '201':
+          description: Agent created
+  /api/v1/consume:
+    post:
+      summary: Consume resources with x402 payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsumptionRequest'
+      responses:
+        '200':
+          description: Resource consumed
+  /api/v1/invoices:
+    get:
+      summary: List invoices
+      responses:
+        '200':
+          description: List of invoices
+components:
+  schemas:
+    AgentRegistration:
+      type: object
+      properties:
+        owner_address:
+          type: string
+        delegation_address:
+          type: string
+    ConsumptionRequest:
+      type: object
+      properties:
+        agent_id:
+          type: string
+        resource_type:
+          type: string
+        amount:
+          type: integer
+        x402_payment:
+          type: object

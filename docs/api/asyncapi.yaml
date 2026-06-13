@@ -1,0 +1,29 @@
+asyncapi: 2.6.0
+info:
+  title: Agent Platform Events
+  version: 0.1.0
+channels:
+  agent/events:
+    subscribe:
+      message:
+        payload:
+          type: object
+          properties:
+            event_type:
+              type: string
+            agent_id:
+              type: string
+            payload:
+              type: object
+  billing/events:
+    subscribe:
+      message:
+        payload:
+          type: object
+          properties:
+            event_type:
+              type: string
+            session_id:
+              type: string
+            amount:
+              type: number

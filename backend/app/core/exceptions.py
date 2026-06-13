@@ -1,0 +1,11 @@
+class AgentPlatformError(Exception): pass
+class DomainError(AgentPlatformError): pass
+class AggregateNotFoundError(DomainError): pass
+class ConcurrencyError(DomainError): pass
+class InvalidEventError(DomainError): pass
+class RateLimitExceededError(AgentPlatformError): pass
+class PaymentError(AgentPlatformError): pass
+class InsufficientFundsError(PaymentError): pass
+class InvalidSignatureError(PaymentError): pass
+class DelegationError(AgentPlatformError): pass
+class IdempotencyError(AgentPlatformError): pass
