@@ -12,8 +12,6 @@ Usage:
     result = await session.execute(query)
 """
 
-from datetime import datetime
-
 
 class AnalyticsQueries:
     """Library of analytical SQL queries for business metrics."""
