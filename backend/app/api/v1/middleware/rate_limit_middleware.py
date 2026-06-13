@@ -3,7 +3,6 @@ from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from redis.asyncio import Redis
-from app.core.dependencies import redis_client
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

@@ -1,14 +1,14 @@
 """Agent Platform - Main Application."""
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.core.dependencies import redis_client, engine
+from app.core.dependencies import engine
 from app.api.v1.endpoints import agents, consume, invoices, health
 from app.api.v1.middleware import RateLimitMiddleware
-from app.api.websocket.event_handler import WebSocketEventHandler, manager
+from app.api.websocket.event_handler import WebSocketEventHandler
 from app.infrastructure.messaging.kafka_producer import KafkaEventProducer
 
 # Setup logging

@@ -12,7 +12,7 @@ Usage:
     result = await session.execute(query)
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 
 class AnalyticsQueries:

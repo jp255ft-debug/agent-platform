@@ -1,8 +1,7 @@
 """Agent management endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, status
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.dependencies import get_db_session, get_redis
+from app.core.dependencies import get_db_session
 from app.api.v1.schemas.agents import (
     AgentCreate, AgentResponse, AgentDelegateRequest, AgentReputationUpdate,
 )
