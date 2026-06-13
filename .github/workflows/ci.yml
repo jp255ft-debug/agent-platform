@@ -78,12 +78,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: "npm"
+
+      - name: Check for package.json
+        id: check-node
+        run: |
+          if [ -f package.json ]; then
+            echo "has-node=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-node=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Install dependencies
-        run: npm ci || npm install
+        if: steps.check-node.outputs.has-node == 'true'
+        run: npm install
 
       - name: Run TypeScript compiler
+        if: steps.check-node.outputs.has-node == 'true'
         run: npx tsc --noEmit || true
 
   validate-docker:
