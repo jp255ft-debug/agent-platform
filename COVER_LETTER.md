@@ -72,7 +72,7 @@ This maps directly to your signal-resolution agents that determine whether the r
 ## 📁 Portfolio Evidence
 
 I've prepared my project repository for your review:
-- **GitHub**: [Link to be added after repo creation]
+- **GitHub**: [https://github.com/jp255ft-debug/agent-platform](https://github.com/jp255ft-debug/agent-platform)
 - **Architecture Documentation**: C4 diagrams, ADRs, domain models
 - **Reconciliation Systems**: Full runbook with incident response procedures
 - **Monitoring Dashboards**: Grafana dashboards for business and system metrics
