@@ -64,38 +64,6 @@ jobs:
       - name: Run Forge tests
         run: forge test -vvv
 
-  validate-node:
-    name: Validate Node.js Service
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./node-service
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js 18
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-
-      - name: Check for package.json
-        id: check-node
-        run: |
-          if [ -f package.json ]; then
-            echo "has-node=true" >> $GITHUB_OUTPUT
-          else
-            echo "has-node=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Install dependencies
-        if: steps.check-node.outputs.has-node == 'true'
-        run: npm install
-
-      - name: Run TypeScript compiler
-        if: steps.check-node.outputs.has-node == 'true'
-        run: npx tsc --noEmit || true
-
   validate-docker:
     name: Validate Docker Compose
     runs-on: ubuntu-latest

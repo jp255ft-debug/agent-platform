@@ -204,8 +204,12 @@ def main():
     print(f"  [AVISO] Avisos: {results['warnings']}")
     print(f"{'='*50}")
 
+    # Apenas erros de sintaxe e imports quebram o build
+    # Warnings (type hints, ruff) são informativos
     if results["failed"] > 0:
+        print(f"\n[FALHA] {results['failed']} erro(s) encontrado(s) - verifique acima")
         sys.exit(1)
+    print(f"\n[SUCESSO] Nenhum erro crítico encontrado")
     sys.exit(0)
 
 
