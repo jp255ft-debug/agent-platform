@@ -33,7 +33,7 @@ jobs:
         run: ruff check app/ --quiet || true
 
       - name: Run Python validator
-        run: python .ai/validation/validate_python.py --path app/
+        run: python ../.ai/validation/validate_python.py --path app/
 
       - name: Run mypy (if config exists)
         run: mypy app/ --ignore-missing-imports || true
