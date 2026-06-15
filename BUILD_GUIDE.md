@@ -22,6 +22,11 @@
 12. [Decisões Arquiteturais (ADRs)](#12-decisões-arquiteturais)
 13. [Guia de Extensão](#13-guia-de-extensão)
 14. [Fluxos Completos](#14-fluxos-completos)
+15. [Camada 10: Conformidade e Regulatório (KYC/AML)](#15-camada-10-conformidade-e-regulatório)
+16. [Camada 11: Integração com Sistema Financeiro Brasileiro](#16-camada-11-integração-com-sistema-financeiro-brasileiro)
+17. [Camada 12: Governança Institucional e LGPD](#17-camada-12-governança-institucional-e-lgpd)
+18. [Roadmap de Adaptação ao Mercado Brasileiro (90 Dias)](#18-roadmap-de-adaptação-ao-mercado-brasileiro)
+19. [Fluxos Estendidos para Mercado Financeiro](#19-fluxos-estendidos-para-mercado-financeiro)
 
 ---
 
@@ -206,13 +211,15 @@ backend/
     │   ├── aggregates/        # Agregados (unidades de consistência)
     │   │   ├── agent.py           # AgentAggregate
     │   │   ├── billing_session.py # BillingSessionAggregate
-    │   │   └── invoice.py         # InvoiceAggregate
+    │   │   ├── invoice.py         # InvoiceAggregate
+    │   │   └── api_key.py         # 🆕 APIKeyAggregate (event sourcing)
     │   │
     │   ├── events/            # Eventos de domínio
     │   │   ├── base.py            # DomainEvent (classe base)
     │   │   ├── agent_events.py    # Eventos de agente
     │   │   ├── billing_events.py  # Eventos de billing
-    │   │   └── payment_events.py  # Eventos de pagamento
+    │   │   ├── payment_events.py  # Eventos de pagamento
+    │   │   └── api_key_events.py  # 🆕 Eventos de API Key
     │   │
     │   └── repositories/      # Interfaces de repositório (protocolos)
     │       ├── event_store.py     # EventStore (interface)
@@ -248,8 +255,9 @@ backend/
     │   │
     │   ├── db/                # Banco de dados
     │   │   └── repositories/  # Implementações concretas dos repositórios
-    │   │       ├── event_store.py    # PostgresEventStore (implementação)
-    │   │       └── snapshot_repo.py  # SnapshotRepository (implementação)
+    │   │       ├── event_store.py        # PostgresEventStore (implementação)
+    │   │       ├── snapshot_repo.py      # SnapshotRepository (implementação)
+    │   │       └── api_key_repository.py # 🆕 APIKeyRepository (PostgreSQL + Redis cache)
     │   │
     │   └── messaging/         # Kafka
     │       ├── kafka_producer.py     # Produtor de eventos Kafka
@@ -367,6 +375,52 @@ class DomainEvent:
 | `PaymentFailed` | Invoice | `settle_invoice` |
 | `InvoiceGenerated` | Invoice | `settle_invoice` |
 | `InvoicePaid` | Invoice | `settle_invoice` |
+| `APIKeyCreated` | APIKey | `create_api_key` |
+| `APIKeyRevoked` | APIKey | `revoke_api_key` |
+| `APIKeyExpired` | APIKey | `expire_keys` (automático) |
+| `APIKeyRotated` | APIKey | `rotate_api_key` |
+| `APIKeyUsed` | APIKey | `validate_api_key` (auditoria) |
+
+### APIKeyAggregate
+
+**Arquivo**: `backend/app/domain/aggregates/api_key.py`
+
+**Propósito**: Gerenciar chaves de API de agentes com event sourcing completo para auditoria.
+
+**Eventos**:
+| Evento | Disparado por | Payload |
+|--------|---------------|---------|
+| `APIKeyCreated` | `create()` | `{key_id, key_hash, expires_at, label}` |
+| `APIKeyRevoked` | `revoke_key()` | `{key_id, reason}` |
+| `APIKeyExpired` | `expire_keys()` | `{key_id}` |
+| `APIKeyRotated` | `rotate_key()` | `{old_key_id, new_key_id, new_key_hash}` |
+| `APIKeyUsed` | `record_usage()` | `{key_id, ip_address}` |
+
+**Métodos principais**:
+```python
+class APIKeyAggregate:
+    @staticmethod
+    def create(agent_id, key_id, key_hash, expires_in_days=90, label="default")
+    def revoke_key(key_id, reason="manual")
+    def rotate_key(old_key_id, new_key_id, new_key_hash)
+    def expire_keys()
+    def is_valid(key_hash) -> bool
+    def record_usage(key_id, ip_address=None)
+    def active_keys() -> List[str]
+```
+
+**Exemplo de uso**:
+```python
+# Criar uma nova chave
+aggregate = APIKeyAggregate.create("agent-123", "key_abc", "$2b$12$hash...")
+await event_store.append_events("agent-123", aggregate.get_changes(), expected_version=0)
+
+# Verificar se uma chave é válida
+aggregate = APIKeyAggregate.rebuild("agent-123", events)
+if aggregate.is_valid("$2b$12$hash..."):
+    # Chave válida - prosseguir
+    pass
+```
 
 ### Como Adicionar um Novo Agregado
 
@@ -382,7 +436,7 @@ class DomainEvent:
 
 ## 5. Camada 3: Infraestrutura
 
-### PostgreSQL (Event Store)
+### PostgreSQL (Event Store + API Keys)
 
 **Arquivo**: `backend/app/infrastructure/db/repositories/event_store.py`
 
@@ -567,6 +621,10 @@ class EventHandlers:
 | `POST` | `/api/v1/consume` | `consume_resource` | Consumir recurso (x402) |
 | `GET` | `/api/v1/invoices/{address}` | `get_invoice` | Obter fatura |
 | `GET` | `/api/v1/invoices/{address}/pending` | `list_invoices` | Listar faturas pendentes |
+| `POST` | `/api/v1/agents/{agent_id}/api-keys` | `create_api_key` | 🆕 Criar chave de API |
+| `GET` | `/api/v1/agents/{agent_id}/api-keys` | `list_api_keys` | 🆕 Listar chaves de API |
+| `POST` | `/api/v1/agents/{agent_id}/api-keys/{key_id}/revoke` | `revoke_api_key` | 🆕 Revogar chave |
+| `POST` | `/api/v1/agents/{agent_id}/api-keys/{key_id}/rotate` | `rotate_api_key` | 🆕 Rotacionar chave |
 | `WS` | `/ws` | `websocket_endpoint` | Eventos em tempo real |
 
 ### Schemas (Pydantic)
@@ -588,12 +646,83 @@ class ConsumeResponse(BaseModel):
     quota_remaining: int
 ```
 
+**Schemas de API Keys** (`backend/app/api/v1/schemas/api_keys.py`):
+```python
+class CreateAPIKeyRequest(BaseModel):
+    label: str = Field(default="default", max_length=100)
+    expires_in_days: int = Field(default=90, ge=1, le=365)
+
+class CreateAPIKeyResponse(BaseModel):
+    key_id: str
+    plain_key: str  # Mostrado apenas uma vez!
+    expires_at: datetime
+    label: str
+
+class APIKeyResponse(BaseModel):
+    key_id: str
+    label: str
+    is_active: bool
+    is_revoked: bool
+    expires_at: Optional[datetime]
+    last_used_at: Optional[datetime]
+    created_at: datetime
+
+class RevokeAPIKeyRequest(BaseModel):
+    reason: str = Field(default="manual", max_length=500)
+```
+
 ### Middleware
 
 **Rate Limit Middleware** (`rate_limit_middleware.py`):
 - Limita requisições por IP/agente
 - Usa Redis + Token Bucket
 - Configurável via `max_requests` e `window`
+
+**Security Middleware** (`security.py`) — 🆕:
+- **OWASP Headers**: HSTS, CSP, X-Frame-Options, X-Content-Type-Options
+- **Correlation ID**: Header `X-Correlation-ID` para rastreamento distribuído
+- **Request Logging**: Log estruturado de todas as requisições (método, path, status, duração)
+
+```python
+# backend/app/api/v1/middleware/security.py
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Content-Security-Policy"] = "default-src 'self'"
+        return response
+```
+
+### Autenticação com API Key
+
+**Arquivo**: `backend/app/core/auth.py`
+
+**Formato**: `X-API-Key: <key_id>.<plain_key>`
+
+**Fluxo de validação**:
+```
+1. Extrair header X-API-Key
+2. Parsear key_id.plain_key
+3. Buscar hash no Redis (cache, TTL 5min) ou PostgreSQL
+4. Verificar bcrypt (salt rounds: 12)
+5. Carregar APIKeyAggregate do Event Store
+6. Validar se chave não está revogada/expirada
+7. Registrar uso (evento APIKeyUsed para auditoria)
+8. Retornar agent_id
+```
+
+**Exemplo de uso em endpoints**:
+```python
+from app.core.auth import validate_api_key
+
+@router.get("/api/v1/protected-resource")
+async def get_protected_resource(
+    agent_id: str = Depends(validate_api_key)
+):
+    return {"agent_id": agent_id, "data": "sensitive"}
+```
 
 ### WebSocket
 
@@ -704,11 +833,24 @@ make simulate-all          # Todos em paralelo
 ### Testes
 
 ```bash
-make test              # Todos os testes
-make test-backend      # pytest + coverage
+make test              # Todos os testes (94+ Python + 91+ Solidity)
+make test-backend      # pytest + coverage (94 testes)
 make test-contracts    # forge test (91+ testes)
 make test-lua          # Testes de scripts Lua Redis
 ```
+
+**Testes de API Key** (33 novos testes):
+
+| Arquivo | Tipo | Quantidade | O que testa |
+|---------|------|------------|-------------|
+| `tests/unit/test_api_key_aggregate.py` | Unitário | 23 | Create, revoke, rotate, expire, validation, active_keys, record_usage, event sourcing |
+| `tests/integration/test_auth.py` | Integração | 10 | Crypto (bcrypt), validação de header, key revogada/expirada, fluxo completo |
+
+**Testes de Pix** (13 testes):
+
+| Arquivo | Tipo | Quantidade | O que testa |
+|---------|------|------------|-------------|
+| `tests/integration/test_pix_client.py` | Integração | 13 | Inicialização, QR Code, check payment, list transactions, context manager |
 
 ---
 
@@ -1054,5 +1196,960 @@ Push to main
 
 ---
 
-> **Documento gerado em**: 12/06/2026
+## 15. Camada 10: Conformidade e Regulatório (KYC/AML)
+
+### Propósito
+
+Tornar a plataforma elegível para operar no **sandbox regulatório da CVM** (prorrogado até 2026) e atender requisitos do BACEN (Banco Central) e COAF (Conselho de Controle de Atividades Financeiras), conforme Resolução CVM 88.
+
+### Estrutura
+
+```
+backend/app/
+├── domain/
+│   ├── aggregates/
+│   │   ├── kyc_profile.py         # 🆕 Agregado de perfil KYC
+│   │   └── compliance_check.py    # 🆕 Agregado de verificações de compliance
+│   │
+│   └── events/
+│       └── compliance_events.py   # 🆕 Eventos de compliance
+│
+├── infrastructure/
+│   ├── compliance/                # 🆕 Integrações de compliance
+│   │   ├── serpro_client.py       # Validação CPF/CNPJ (API Serpro)
+│   │   ├── unico_client.py        # Biometria facial (Unico ID)
+│   │   └── chainalysis_client.py  # AML on-chain (Chainalysis)
+│   │
+│   └── regulatory/                # 🆕 Relatórios regulatórios
+│       ├── cvm_reporter.py        # Relatórios CVM (Resolução 88)
+│       └── coaf_reporter.py       # Relatórios COAF (>R$ 10k)
+│
+├── analytics/
+│   └── regulatory_reports.py      # 🆕 Queries para relatórios regulatórios
+│
+└── api/v1/
+    ├── endpoints/
+    │   └── compliance.py          # 🆕 Endpoints de KYC/AML
+    │
+    └── schemas/
+        └── compliance.py          # 🆕 Schemas de compliance
+```
+
+```
+contracts/src/
+└── compliance/
+    ├── ComplianceVerifier.sol     # 🆕 Verificação de KYC on-chain
+    └── RegulatedAssetToken.sol    # 🆕 Token ERC-20 com whitelist KYC
+```
+
+### Detalhamento dos Componentes
+
+#### `KYCProfile` Aggregate
+
+**Arquivo**: `backend/app/domain/aggregates/kyc_profile.py`
+
+**Propósito**: Gerenciar o perfil de identidade e conformidade de um agente.
+
+**Campos**:
+```python
+class KYCProfile:
+    profile_id: str               # UUID
+    agent_id: str                 # Referência ao agente
+    document_type: str            # "CPF" | "CNPJ"
+    document_number: str          # Número do documento
+    full_name: str                # Nome completo / Razão social
+    email: str                    # Email de contato
+    phone: str                    # Telefone
+    address: dict                 # Endereço completo
+    risk_score: str               # "low" | "medium" | "high"
+    verification_status: str      # "pending" | "approved" | "rejected" | "suspended"
+    verified_at: datetime         # Data de aprovação
+    aml_checks: List[dict]        # Lista de verificações AML
+    version: int
+    _changes: List[DomainEvent]
+```
+
+**Eventos**:
+```python
+KYCProfileCreated         # Perfil KYC iniciado
+KYCDocumentSubmitted      # Documento enviado
+KYCBiometrySubmitted      # Biometria enviada
+KYCApproved               # KYC aprovado
+KYCRejected               # KYC rejeitado
+KYCSuspended              # KYC suspenso (atividade suspeita)
+AMLCheckCompleted         # Verificação AML concluída
+AMLAlertTriggered         # Alerta AML disparado (transação suspeita)
+```
+
+#### Integrações de Compliance
+
+##### Serpro Client (Validação CPF/CNPJ)
+
+**Arquivo**: `backend/app/infrastructure/compliance/serpro_client.py`
+
+**API**: https://apigateway.serpro.gov.br/
+
+**Funcionalidades**:
+- Validação de CPF (existência e regularidade)
+- Validação de CNPJ (existência, situação cadastral)
+- Consulta de dados básicos (nome, data de nascimento)
+
+**Exemplo de uso**:
+```python
+class SerproClient:
+    async def validate_cpf(self, cpf: str) -> dict:
+        # POST /consulta-cpf/v1/cpf/{cpf}
+        # Retorna: {"nome": "...", "situacao": "REGULAR", "data_nascimento": "..."}
+        pass
+
+    async def validate_cnpj(self, cnpj: str) -> dict:
+        # GET /consulta-cnpj/v2/cnpj/{cnpj}
+        # Retorna: {"razao_social": "...", "situacao": "ATIVA", ...}
+        pass
+```
+
+**Custo**: ~R$ 0,10 por consulta
+
+##### Unico Client (Biometria Facial)
+
+**Arquivo**: `backend/app/infrastructure/compliance/unico_client.py`
+
+**Funcionalidades**:
+- Verificação de biometria facial (liveness detection)
+- Comparação com foto do documento
+- Prova de vida
+
+**Exemplo de uso**:
+```python
+class UnicoClient:
+    async def verify_face(self, selfie_base64: str, document_photo_base64: str) -> dict:
+        # POST /v1/face-match
+        # Retorna: {"match": true, "confidence": 0.98}
+        pass
+```
+
+**Custo**: ~R$ 0,50 por verificação
+
+##### Chainalysis Client (AML On-Chain)
+
+**Arquivo**: `backend/app/infrastructure/compliance/chainalysis_client.py`
+
+**Funcionalidades**:
+- Rastreamento de endereços Ethereum suspeitos
+- Identificação de origem de fundos (exchange, mixer, etc.)
+- Alertas de risco (sanções, ransomware, etc.)
+
+**Exemplo de uso**:
+```python
+class ChainalysisClient:
+    async def check_address(self, address: str) -> dict:
+        # GET /v1/address/{address}
+        # Retorna: {"risk": "low", "source": "exchange", "alerts": []}
+        pass
+```
+
+**Custo**: ~US$ 500/mês (plano básico)
+
+#### Relatórios Regulatórios
+
+##### CVM Reporter (Resolução 88)
+
+**Arquivo**: `backend/app/infrastructure/regulatory/cvm_reporter.py`
+
+**Relatórios Obrigatórios**:
+
+1. **Posição Consolidada de Ativos Tokenizados** (mensal)
+   - Formato: CSV
+   - Campos: CNPJ emissor, tipo ativo, quantidade, valor, custódia
+
+2. **Transações Suspeitas (COAF)** (tempo real se > R$ 10k)
+   - Formato: XML (padrão COAF)
+   - Envio: API COAF
+
+3. **Relatório de Custódia** (diário)
+   - Formato: JSON
+   - Conteúdo: Saldos de ativos por investidor
+
+4. **Relatório de Operações** (trimestral)
+   - Formato: PDF
+   - Conteúdo: Volume transacionado, fees, etc.
+
+**Exemplo**:
+```python
+class CVMReporter:
+    async def generate_consolidated_position(self, month: int, year: int) -> str:
+        """Gera relatório mensal de posição consolidada."""
+        # Query TimescaleDB/PostgreSQL
+        # Exporta CSV conforme formato CVM
+        return "path/to/report.csv"
+```
+
+#### ComplianceVerifier Smart Contract
+
+**Arquivo**: `contracts/src/compliance/ComplianceVerifier.sol`
+
+**Propósito**: Verificação on-chain se um agente está aprovado para operar.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract ComplianceVerifier {
+    struct KYCRecord {
+        bool approved;
+        bool suspended;
+        uint256 approvedAt;
+        uint256 expiresAt;
+        string tier; // "basic" | "advanced" | "institutional"
+    }
+
+    mapping(address => KYCRecord) public kycRegistry;
+    address public admin;
+
+    event KYCApproved(address indexed agent, uint256 expiresAt, string tier);
+    event KYCSuspended(address indexed agent, string reason);
+
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Only admin");
+        _;
+    }
+
+    function approveKYC(address _agent, uint256 _expiresAt, string memory _tier) 
+        external onlyAdmin {
+        kycRegistry[_agent] = KYCRecord({
+            approved: true,
+            suspended: false,
+            approvedAt: block.timestamp,
+            expiresAt: _expiresAt,
+            tier: _tier
+        });
+        emit KYCApproved(_agent, _expiresAt, _tier);
+    }
+
+    function suspendKYC(address _agent, string memory _reason) 
+        external onlyAdmin {
+        kycRegistry[_agent].suspended = true;
+        emit KYCSuspended(_agent, _reason);
+    }
+
+    function canOperate(address _agent) public view returns (bool) {
+        KYCRecord memory record = kycRegistry[_agent];
+        return record.approved && 
+               !record.suspended && 
+               record.expiresAt > block.timestamp;
+    }
+}
+```
+
+**Integração**: O `PaymentVerifier.sol` será modificado para chamar `ComplianceVerifier.canOperate()` antes de aceitar pagamentos.
+
+### Como Adicionar um Novo Check de Compliance
+
+1. Criar evento em `compliance_events.py`
+2. Adicionar método no agregado `KYCProfile`
+3. Criar integração em `infrastructure/compliance/`
+4. Adicionar handler em `command_handlers.py`
+5. Criar endpoint em `api/v1/endpoints/compliance.py`
+6. Atualizar `ComplianceVerifier.sol` se necessário
+
+### Fluxo: Onboarding com KYC
+
+```
+Usuário          Backend                Serpro/Unico         ComplianceVerifier
+   │                │                        │                       │
+   │  POST /kyc/start                        │                       │
+   │  {cpf, name}   │                        │                       │
+   │───────────────▶│                        │                       │
+   │                │  Validate CPF          │                       │
+   │                │───────────────────────▶│                       │
+   │                │◀───────────────────────│                       │
+   │                │  (nome, situação)      │                       │
+   │                │                        │                       │
+   │  200 {token}   │                        │                       │
+   │◀───────────────│                        │                       │
+   │                │                        │                       │
+   │  POST /kyc/biometry                     │                       │
+   │  {selfie}      │                        │                       │
+   │───────────────▶│                        │                       │
+   │                │  Verify face           │                       │
+   │                │───────────────────────▶│                       │
+   │                │◀───────────────────────│                       │
+   │                │  (match: true, 98%)    │                       │
+   │                │                        │                       │
+   │                │  KYCApproved event     │                       │
+   │                │                        │                       │
+   │                │  approveKYC(address)   │                       │
+   │                │───────────────────────────────────────────────▶│
+   │                │                        │                       │
+   │  200 {approved}│                        │                       │
+   │◀───────────────│                        │                       │
+```
+
+---
+
+## 16. Camada 11: Integração com Sistema Financeiro Brasileiro
+
+### Propósito
+
+Viabilizar liquidação financeira em **BRL fiduciário** (Pix) e **BRL digital** (stablecoins privadas futuras), integrando a plataforma ao sistema financeiro nacional via Open Finance.
+
+### Estrutura
+
+```
+backend/app/
+├── infrastructure/
+│   ├── payments/                  # 🆕 Integrações de pagamento
+│   │   ├── pix_client.py          # Cliente Pix (Stark Bank / Celcoin)
+│   │   ├── pix_webhook.py         # Webhook de confirmação Pix
+│   │   └── pix_reconciliation.py  # Reconciliação Pix ↔ Event Store
+│   │
+│   └── openfinance/               # 🆕 Open Finance (Resolução BCB)
+│       ├── consent_manager.py     # Gerenciamento de consentimentos
+│       └── account_client.py      # Consulta de dados bancários
+│
+└── api/v1/
+    └── endpoints/
+        ├── pix.py                 # 🆕 Endpoints de pagamento Pix
+        └── openfinance.py         # 🆕 Endpoints Open Finance
+```
+
+```
+contracts/src/
+└── settlements/
+    ├── StablecoinBridge.sol       # 🆕 Interface para stablecoins
+    └── PixSettlement.sol          # 🆕 Liquidação híbrida Pix + blockchain
+```
+
+### Detalhamento dos Componentes
+
+#### Pix Client (Stark Bank)
+
+**Arquivo**: `backend/app/infrastructure/payments/pix_client.py`
+
+**Funcionalidades**:
+- Gerar QR Code Pix dinâmico
+- Consultar status de pagamento
+- Receber webhook de confirmação
+- Listar transações
+
+**Exemplo de uso**:
+```python
+class PixClient:
+    def __init__(self, api_key: str, environment: str = "sandbox"):
+        self.api_key = api_key
+        self.base_url = "https://sandbox.api.starkbank.com/v2" if environment == "sandbox" else "https://api.starkbank.com/v2"
+
+    async def create_qr_code(self, amount: Decimal, description: str, payer_name: str) -> dict:
+        """Gera QR Code Pix dinâmico."""
+        # POST /dynamic-brcode
+        # Retorna: {"id": "...", "qr_code": "00020126...", "url": "https://..."}
+        pass
+
+    async def check_payment(self, qr_code_id: str) -> dict:
+        """Verifica se pagamento foi recebido."""
+        # GET /dynamic-brcode/{id}
+        # Retorna: {"status": "paid", "amount": 1000, "payer": {...}}
+        pass
+```
+
+**Webhook**:
+```python
+# backend/app/api/v1/endpoints/pix.py
+
+@router.post("/webhooks/pix")
+async def pix_webhook(event: dict, signature: str = Header(...)):
+    # 1. Validar assinatura HMAC
+    # 2. Processar evento (payment.created, payment.paid)
+    # 3. Atualizar Event Store (PixPaymentReceived event)
+    # 4. Liberar recurso para o agente
+    pass
+```
+
+**Custo**: ~1% por transação Pix
+
+#### Open Finance Client
+
+**Arquivo**: `backend/app/infrastructure/openfinance/consent_manager.py`
+
+**Conformidade**: Resolução Conjunta nº 1 (BCB + CMN)
+
+**Funcionalidades**:
+- Solicitar consentimento do usuário (OAuth2)
+- Buscar dados de contas bancárias
+- Validar capacidade de pagamento
+
+**Fluxo OAuth2**:
+```
+1. Backend redireciona usuário para banco
+2. Usuário autoriza compartilhamento de dados
+3. Backend recebe authorization_code
+4. Backend troca por access_token
+5. Backend consulta dados bancários
+```
+
+**Exemplo**:
+```python
+class OpenFinanceClient:
+    async def request_consent(self, user_id: str, scopes: List[str]) -> str:
+        """Inicia fluxo de consentimento."""
+        # Redireciona para: https://banco.com/oauth/authorize?scope=accounts,transactions
+        pass
+
+    async def get_accounts(self, access_token: str) -> List[dict]:
+        """Lista contas bancárias do usuário."""
+        # GET /open-banking/accounts/v1/accounts
+        # Retorna: [{"accountId": "...", "balance": {...}}]
+        pass
+```
+
+#### StablecoinBridge Smart Contract
+
+**Arquivo**: `contracts/src/settlements/StablecoinBridge.sol`
+
+**Propósito**: Interface genérica para múltiplos emissores de stablecoins (USDC, BRZ, Drex futuro).
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface IStablecoinProvider {
+    function mint(address to, uint256 amount) external;
+    function burn(address from, uint256 amount) external;
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+}
+
+contract StablecoinBridge {
+    mapping(string => address) public providers; // "USDC" => 0x..., "BRZ" => 0x...
+    address public admin;
+
+    event ProviderRegistered(string indexed symbol, address provider);
+    event SettlementExecuted(address indexed agent, string symbol, uint256 amount);
+
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Only admin");
+        _;
+    }
+
+    constructor() {
+        admin = msg.sender;
+    }
+
+    function registerProvider(string memory _symbol, address _provider) 
+        external onlyAdmin {
+        providers[_symbol] = _provider;
+        emit ProviderRegistered(_symbol, _provider);
+    }
+
+    function settle(string memory _symbol, address _agent, uint256 _amount) 
+        external {
+        address provider = providers[_symbol];
+        require(provider != address(0), "Provider not registered");
+
+        IStablecoinProvider(provider).transfer(_agent, _amount);
+        emit SettlementExecuted(_agent, _symbol, _amount);
+    }
+}
+```
+
+### Fluxo: Pagamento Híbrido (Pix + x402)
+
+```
+Agente          Backend           Stark Bank         Blockchain
+   │               │                   │                  │
+   │  POST /consume                    │                  │
+   │  (sem tx_hash) │                  │                  │
+   │───────────────▶│                  │                  │
+   │                │  Gera QR Code Pix│                  │
+   │                │─────────────────▶│                  │
+   │                │◀─────────────────│                  │
+   │  200 {qr_code} │                  │                  │
+   │◀───────────────│                  │                  │
+   │                │                  │                  │
+   │  [Paga Pix]    │                  │                  │
+   │───────────────────────────────────▶│                  │
+   │                │                  │                  │
+   │                │  Webhook (paid)  │                  │
+   │                │◀─────────────────│                  │
+   │                │                  │                  │
+   │                │  PixPaymentReceived event           │
+   │                │  (Event Store)   │                  │
+   │                │                  │                  │
+   │                │  Libera recurso  │                  │
+   │                │  para agente     │                  │
+   │                │                  │                  │
+   │                │  [Opcional] Batch settlement        │
+   │                │  on-chain (fim do dia)              │
+   │                │─────────────────────────────────────▶│
+```
+
+---
+
+## 17. Camada 12: Governança Institucional e LGPD
+
+### Propósito
+
+Implementar controles de governança empresarial (multi-sig, auditoria) e conformidade com LGPD (Lei Geral de Proteção de Dados - Lei 13.709/2018).
+
+### Estrutura
+
+```
+backend/app/
+├── infrastructure/
+│   ├── gdpr/                      # 🆕 Conformidade LGPD
+│   │   ├── gdpr_manager.py        # Anonimização e data retention
+│   │   └── data_export.py         # Portabilidade de dados
+│   │
+│   └── governance/                # 🆕 Governança
+│       ├── audit_logger.py        # Log de auditoria
+│       └── access_control.py      # Controle de acesso (RBAC)
+│
+└── analytics/
+    └── audit_queries.py           # 🆕 Queries de auditoria
+```
+
+```
+contracts/src/
+└── governance/
+    ├── MultiSigController.sol     # 🆕 Multi-sig para operações críticas
+    └── TimelockController.sol     # 🆕 Timelock para upgrades
+```
+
+```
+docs/business/
+├── TCO_CALCULATOR.md              # 🆕 Calculadora de ROI
+└── COMPLIANCE_MATRIX.md           # 🆕 Matriz de conformidade
+```
+
+### Multi-Sig Controller
+
+**Arquivo**: `contracts/src/governance/MultiSigController.sol`
+
+**Propósito**: Requer múltiplas assinaturas (3/5) para operações críticas.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract MultiSigController {
+    address[] public signers;
+    uint256 public requiredSignatures = 3;
+    
+    struct Transaction {
+        address target;
+        uint256 value;
+        bytes data;
+        uint256 confirmations;
+        bool executed;
+        mapping(address => bool) confirmed;
+    }
+
+    mapping(uint256 => Transaction) public transactions;
+    uint256 public transactionCount;
+
+    event TransactionSubmitted(uint256 indexed txId, address indexed target);
+    event TransactionConfirmed(uint256 indexed txId, address indexed signer);
+    event TransactionExecuted(uint256 indexed txId);
+
+    modifier onlySigner() {
+        bool isSigner = false;
+        for (uint i = 0; i < signers.length; i++) {
+            if (signers[i] == msg.sender) isSigner = true;
+        }
+        require(isSigner, "Not a signer");
+        _;
+    }
+
+    function submitTransaction(address _target, uint256 _value, bytes memory _data) 
+        external onlySigner returns (uint256) {
+        uint256 txId = transactionCount++;
+        Transaction storage txn = transactions[txId];
+        txn.target = _target;
+        txn.value = _value;
+        txn.data = _data;
+        
+        emit TransactionSubmitted(txId, _target);
+        confirmTransaction(txId);
+        return txId;
+    }
+
+    function confirmTransaction(uint256 _txId) public onlySigner {
+        Transaction storage txn = transactions[_txId];
+        require(!txn.executed, "Already executed");
+        require(!txn.confirmed[msg.sender], "Already confirmed");
+
+        txn.confirmed[msg.sender] = true;
+        txn.confirmations++;
+
+        emit TransactionConfirmed(_txId, msg.sender);
+
+        if (txn.confirmations >= requiredSignatures) {
+            executeTransaction(_txId);
+        }
+    }
+
+    function executeTransaction(uint256 _txId) internal {
+        Transaction storage txn = transactions[_txId];
+        require(!txn.executed, "Already executed");
+        require(txn.confirmations >= requiredSignatures, "Not enough confirmations");
+
+        txn.executed = true;
+        (bool success,) = txn.target.call{value: txn.value}(txn.data);
+        require(success, "Transaction failed");
+
+        emit TransactionExecuted(_txId);
+    }
+}
+```
+
+### LGPD Manager
+
+**Arquivo**: `backend/app/infrastructure/gdpr/gdpr_manager.py`
+
+**Funcionalidades**:
+- **Right to be Forgotten**: Remover/anonimizar dados de um agente
+- **Data Portability**: Exportar todos os dados em formato legível (JSON)
+- **Data Retention**: Anonimizar eventos com PII após 5 anos (LGPD Art. 16)
+
+```python
+class GDPRManager:
+    def __init__(self, event_store: EventStore):
+        self._event_store = event_store
+
+    async def anonymize_agent(self, agent_id: str) -> None:
+        """Anonimiza dados de um agente (direito ao esquecimento)."""
+        # 1. Carregar todos os eventos do agente
+        events = await self._event_store.load_stream(agent_id)
+        
+        # 2. Para cada evento com PII, substituir por dados anônimos
+        for event in events:
+            if self._contains_pii(event):
+                event.data = {"anonymized": True, "reason": "GDPR_request"}
+                await self._event_store.update_event(event)
+
+    async def export_agent_data(self, agent_id: str) -> dict:
+        """Exporta todos os dados de um agente (portabilidade)."""
+        events = await self._event_store.load_stream(agent_id)
+        return {
+            "agent_id": agent_id,
+            "events": [e.to_dict() for e in events],
+            "exported_at": datetime.utcnow().isoformat()
+        }
+
+    async def apply_retention_policy(self) -> int:
+        """Aplica política de retenção (anonimiza eventos >5 anos)."""
+        cutoff_date = datetime.utcnow() - timedelta(days=5*365)
+        expired_events = await self._event_store.get_events_before(cutoff_date)
+        
+        count = 0
+        for event in expired_events:
+            if self._contains_pii(event):
+                event.data = {"anonymized": True, "reason": "retention_policy"}
+                await self._event_store.update_event(event)
+                count += 1
+        
+        return count
+```
+
+### TCO Calculator
+
+**Arquivo**: `docs/business/TCO_CALCULATOR.md`
+
+**Conteúdo**: Calculadora de ROI (Return on Investment) para apresentar a CFOs.
+
+```markdown
+# TCO Calculator — Agent Platform para Bancos
+
+## Cenário: Banco de Grande Porte
+
+### Custos Atuais (Infraestrutura Legada)
+
+| Item | Custo Anual |
+|------|-------------|
+| Equipe de Compliance (10 FTEs) | R$ 2.000.000 |
+| Infraestrutura de Reconciliação | R$ 800.000 |
+| Auditoria Externa | R$ 500.000 |
+| Multas por Discrepâncias (~2% ao ano) | R$ 300.000 |
+| **TOTAL** | **R$ 3.600.000** |
+
+### Custos Projetados (Agent Platform)
+
+| Item | Custo Anual |
+|------|-------------|
+| Assinatura Platform (R$ 20k/mês x 12) | R$ 240.000 |
+| Taxa sobre Volume (0,5% de R$ 100M) | R$ 500.000 |
+| Equipe Reduzida (3 FTEs) | R$ 600.000 |
+| Infra Cloud (AWS/Azure) | R$ 200.000 |
+| **TOTAL** | **R$ 1.540.000** |
+
+### Economia e ROI
+
+| Métrica | Valor |
+|---------|-------|
+| **Economia Anual** | **R$ 2.060.000** (57%) |
+| **Investimento Inicial** (PoC + integração) | R$ 500.000 |
+| **Payback Period** | **3 meses** |
+| **ROI em 12 meses** | **312%** |
+
+### Benefícios Intangíveis
+
+- ✅ Zero discrepâncias (vs. 2% com sistema legado)
+- ✅ Conformidade CVM/BACEN automática
+- ✅ Redução de 80% no tempo de onboarding (KYC)
+- ✅ Relatórios regulatórios em tempo real
+```
+
+---
+
+## 18. Roadmap de Adaptação ao Mercado Brasileiro (90 Dias)
+
+### Visão Geral
+
+Este roadmap detalha a implementação dos 3 pilares estratégicos para adaptação ao mercado financeiro brasileiro:
+
+| Pilar | ARR Habilitado | Prioridade | Duração |
+|-------|----------------|------------|---------|
+| **Pilar 1: Facilitador x402** | R$ 20M - R$ 30M | 🔥 Alta | 30 dias |
+| **Pilar 2: Tokenização + Compliance** | R$ 2,2M - R$ 15M | 🔥 Alta | 45 dias |
+| **Pilar 3: Agentes as a Service** | R$ 1,2M | Média | 60 dias |
+
+### Sprint 1-2: Facilitador x402 (Semanas 1-4)
+
+**Objetivo**: Processar R$ 1M em volume de testes com 100% de reconciliação.
+
+#### Semana 1: Integração Pix
+
+**Entregas**:
+- [ ] `backend/app/infrastructure/payments/pix_client.py`
+- [ ] Conta Stark Bank Sandbox
+- [ ] Testes: Gerar QR Code Pix
+
+**Testes**:
+```bash
+pytest tests/integration/test_pix_client.py
+```
+
+#### Semana 2: Webhook e Reconciliação
+
+**Entregas**:
+- [ ] `backend/app/api/v1/endpoints/pix.py` (webhook)
+- [ ] `PixPaymentReceived` event
+- [ ] Reconciliação Pix ↔ Event Store
+
+**Fluxo de Teste**:
+1. Gerar QR Code via API
+2. Pagar via Pix (sandbox)
+3. Webhook confirma pagamento
+4. Event Store atualizado
+5. Script de reconciliação valida
+
+#### Semana 3: Dashboard x402
+
+**Entregas**:
+- [ ] `monitoring/grafana/dashboards/x402-facilitator.json`
+- [ ] Métricas: Volume processado, taxa de sucesso, latência
+
+#### Semana 4: Testes de Carga
+
+**Entregas**:
+- [ ] Simulador: 10k transações Pix
+- [ ] Validação: 100% de reconciliação
+
+### Sprint 3-4: Tokenização + Compliance (Semanas 5-8)
+
+**Objetivo**: Tokenizar 1 ativo real (R$ 10M) com KYC completo.
+
+#### Semana 5: Módulo KYC
+
+**Entregas**:
+- [ ] `backend/app/domain/aggregates/kyc_profile.py`
+- [ ] `backend/app/infrastructure/compliance/serpro_client.py`
+- [ ] Integração Serpro (validação CPF)
+
+#### Semana 6: Biometria e AML
+
+**Entregas**:
+- [ ] `backend/app/infrastructure/compliance/unico_client.py`
+- [ ] `backend/app/infrastructure/compliance/chainalysis_client.py`
+- [ ] Fluxo completo de KYC (CPF + biometria)
+
+#### Semana 7: Smart Contract Regulado
+
+**Entregas**:
+- [ ] `contracts/src/compliance/ComplianceVerifier.sol`
+- [ ] `contracts/src/compliance/RegulatedAssetToken.sol`
+- [ ] Testes Foundry (forge test)
+
+#### Semana 8: Relatórios CVM
+
+**Entregas**:
+- [ ] `backend/app/infrastructure/regulatory/cvm_reporter.py`
+- [ ] Relatório de Posição Consolidada (CSV)
+- [ ] Relatório COAF (XML)
+
+### Sprint 5-6: Agentes as a Service (Semanas 9-12)
+
+**Objetivo**: 1 cliente piloto pagando R$ 20k/mês por 3 meses.
+
+#### Semana 9: Agent Marketplace
+
+**Entregas**:
+- [ ] `backend/app/api/v1/endpoints/agent_marketplace.py`
+- [ ] Catálogo: 3 agentes pré-configurados
+  - Agente de Rebalanceamento de Portfólio
+  - Agente de Monitoramento de Liquidez
+  - Agente de Alertas de Compliance
+
+#### Semana 10: Multi-tenancy
+
+**Entregas**:
+- [ ] `backend/app/infrastructure/isolation/tenant_manager.py`
+- [ ] Namespace isolado por cliente (Redis, Kafka, PostgreSQL)
+
+#### Semana 11: Billing por Tokens
+
+**Entregas**:
+- [ ] `backend/app/domain/aggregates/agent_billing.py`
+- [ ] Modelo: R$ 20k base + R$ 0,01 por 1k tokens
+
+#### Semana 12: Governança
+
+**Entregas**:
+- [ ] `contracts/src/governance/MultiSigController.sol`
+- [ ] `backend/app/infrastructure/gdpr/gdpr_manager.py`
+- [ ] Política de retenção LGPD (5 anos)
+
+### Demo Day (Semana 13)
+
+**Entregáveis**:
+- [ ] Pitch Deck (10 slides)
+- [ ] Vídeo Demo (3 minutos)
+- [ ] TCO Calculator (Excel)
+- [ ] PoC funcionando em produção (sandbox)
+
+**Agenda**:
+1. Apresentação para CTO/CFO do Itaú
+2. Demo ao vivo: Pix → KYC → Tokenização → Reconciliação
+3. Apresentação de métricas reais
+4. Discussão de piloto (3 meses)
+
+### Métricas de Sucesso
+
+| Métrica | Meta |
+|---------|------|
+| Volume Pix Processado | R$ 1M |
+| Taxa de Reconciliação | 100% |
+| KYCs Aprovados | 50+ |
+| Ativos Tokenizados | 1 (R$ 10M) |
+| Relatórios CVM Gerados | 3 (mensal, COAF, custódia) |
+| Clientes Piloto (Agentes as a Service) | 1 |
+
+---
+
+## 19. Fluxos Estendidos para Mercado Financeiro
+
+### Fluxo: Onboarding Completo com KYC + Pix + Tokenização
+
+```
+Cliente          Backend              Serpro/Unico         Stark Bank         Blockchain
+   │                │                     │                    │                  │
+   │  POST /kyc/start                     │                    │                  │
+   │  {cpf, name}   │                     │                    │                  │
+   │───────────────▶│                     │                    │                  │
+   │                │  Validate CPF       │                    │                  │
+   │                │────────────────────▶│                    │                  │
+   │                │◀────────────────────│                    │                  │
+   │                │  (nome, situação)   │                    │                  │
+   │                │                     │                    │                  │
+   │  200 {token}   │                     │                    │                  │
+   │◀───────────────│                     │                    │                  │
+   │                │                     │                    │                  │
+   │  POST /kyc/biometry                  │                    │                  │
+   │  {selfie}      │                     │                    │                  │
+   │───────────────▶│                     │                    │                  │
+   │                │  Verify face        │                    │                  │
+   │                │────────────────────▶│                    │                  │
+   │                │◀────────────────────│                    │                  │
+   │                │  (match: 98%)       │                    │                  │
+   │                │                     │                    │                  │
+   │                │  KYCApproved event  │                    │                  │
+   │                │                     │                    │                  │
+   │                │  approveKYC()       │                    │                  │
+   │                │───────────────────────────────────────────────────────────▶│
+   │                │                     │                    │                  │
+   │  POST /consume (Pix)                 │                    │                  │
+   │  {resource, units}                   │                    │                  │
+   │───────────────▶│                     │                    │                  │
+│                │  Check KYC (canOperate)                  │                  │
+│                │───────────────────────────────────────────────────────────▶│
+│                │                     │                    │                  │
+│                │  Gera QR Code Pix   │                    │                  │
+│                │─────────────────────────────────────────▶│                  │
+│                │                     │                    │                  │
+│  200 {qr_code} │                     │                    │                  │
+│◀───────────────│                     │                    │                  │
+│                │                     │                    │                  │
+│  [Paga Pix]    │                     │                    │                  │
+│──────────────────────────────────────────────────────────▶│                  │
+│                │                     │                    │                  │
+│                │  Webhook (paid)     │                    │                  │
+│                │◀─────────────────────────────────────────│                  │
+│                │                     │                    │                  │
+│                │  PixPaymentReceived event                │                  │
+│                │  (Event Store)      │                    │                  │
+│                │                     │                    │                  │
+│                │  Libera recurso     │                    │                  │
+│                │  para agente        │                    │                  │
+│                │                     │                    │                  │
+│                │  [Opcional] Tokeniza ativo               │                  │
+│                │  (RegulatedAssetToken)                   │                  │
+│                │───────────────────────────────────────────────────────────▶│
+│                │                     │                    │                  │
+│                │  InvoiceGenerated event                  │                  │
+│                │  (Event Store)      │                    │                  │
+│                │                     │                    │                  │
+│                │  Relatório CVM      │                    │                  │
+│                │  (Posição Consolidada)                   │                  │
+│                │                     │                    │                  │
+│  200 {invoice} │                     │                    │                  │
+│◀───────────────│                     │                    │                  │
+```
+
+### Fluxo: Reconciliação Estendida (Pix + Blockchain + CVM)
+
+```
+Schedule (cron)    Reconciliation Script       PostgreSQL        Stark Bank      Blockchain
+     │                      │                      │                │               │
+     │  make reconcile      │                      │                │               │
+     │─────────────────────▶│                      │                │               │
+     │                      │  1. Load Pix events  │                │               │
+     │                      │─────────────────────▶│                │               │
+     │                      │◀─────────────────────│                │               │
+     │                      │                      │                │               │
+     │                      │  2. For each Pix:    │                │               │
+     │                      │   Check Stark Bank   │                │               │
+     │                      │──────────────────────────────────────▶│               │
+     │                      │◀──────────────────────────────────────│               │
+     │                      │                      │                │               │
+     │                      │  3. Load on-chain    │                │               │
+     │                      │   events             │                │               │
+     │                      │─────────────────────▶│                │               │
+     │                      │◀─────────────────────│                │               │
+     │                      │                      │                │               │
+     │                      │  4. Cross-reference  │                │               │
+     │                      │   Pix ↔ Blockchain   │                │               │
+     │                      │                      │                │               │
+     │                      │  5. If discrepancy:  │                │               │
+     │                      │   a. Log alert       │                │               │
+     │                      │   b. Generate report │                │               │
+     │                      │   c. Notify CVM      │                │               │
+     │                      │                      │                │               │
+     │  Report + CVM file   │                      │                │               │
+     │◀─────────────────────│                      │                │               │
+```
+
+---
+
+> **Documento gerado em**: 13/06/2026
 > **Versão do Projeto**: 0.1.0
+> **Adaptação para Mercado Financeiro Brasileiro**: v1.0

@@ -3,6 +3,7 @@ from web3 import Web3
 from web3.contract import Contract
 from app.core.config import settings
 from app.infrastructure.blockchain.web3_client import Web3Client
+from app.core.exceptions import ContractNotConfiguredError
 
 
 # Minimal ABI for delegation contract
@@ -51,7 +52,7 @@ class DelegationContract:
     async def set_delegation(self, agent_address: str, delegate_address: str) -> str:
         """Set delegation for an agent (requires deployer key)."""
         if not self._contract:
-            raise ValueError("Delegation contract not configured")
+            raise ContractNotConfiguredError(contract_name="AgentDelegation")
 
         account = self._client.w3.eth.account.from_key(settings.CONTRACT_DEPLOYER_KEY)
         tx = self._contract.functions.setDelegation(
@@ -70,7 +71,7 @@ class DelegationContract:
     async def get_delegation(self, agent_address: str) -> str:
         """Get the delegated address for an agent."""
         if not self._contract:
-            raise ValueError("Delegation contract not configured")
+            raise ContractNotConfiguredError(contract_name="AgentDelegation")
         return await self._contract.functions.getDelegation(
             Web3.to_checksum_address(agent_address),
         ).call()
@@ -78,7 +79,7 @@ class DelegationContract:
     async def revoke_delegation(self, agent_address: str) -> str:
         """Revoke delegation for an agent."""
         if not self._contract:
-            raise ValueError("Delegation contract not configured")
+            raise ContractNotConfiguredError(contract_name="AgentDelegation")
 
         account = self._client.w3.eth.account.from_key(settings.CONTRACT_DEPLOYER_KEY)
         tx = self._contract.functions.revokeDelegation(

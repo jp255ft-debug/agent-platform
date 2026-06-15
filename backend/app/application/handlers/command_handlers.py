@@ -9,6 +9,12 @@ from app.application.commands.register_agent import (
 )
 from app.application.commands.consume_resource import ConsumeResourceCommand
 from app.application.commands.settle_invoice import SettleInvoiceCommand
+from app.core.exceptions import (
+    AgentAlreadyExistsError,
+    AgentNotFoundError,
+    InvoiceNotFoundError,
+    InvoiceAlreadySettledError,
+)
 
 
 class CommandHandlers:
@@ -20,7 +26,7 @@ class CommandHandlers:
         # Check if agent already exists
         existing = await self._event_store.load_stream(command.agent_id)
         if existing:
-            raise ValueError(f"Agent {command.agent_id} already exists")
+            raise AgentAlreadyExistsError(agent_id=command.agent_id)
 
         aggregate = AgentAggregate.register(
             command.agent_id, command.owner_address, command.delegation_address,
@@ -33,7 +39,7 @@ class CommandHandlers:
         """Handle agent delegation (EIP-7702)."""
         events = await self._event_store.load_stream(command.agent_id)
         if not events:
-            raise ValueError(f"Agent {command.agent_id} not found")
+            raise AgentNotFoundError(agent_id=command.agent_id)
 
         aggregate = AgentAggregate(command.agent_id)
         for event in events:
@@ -49,7 +55,7 @@ class CommandHandlers:
         """Handle delegation revocation."""
         events = await self._event_store.load_stream(command.agent_id)
         if not events:
-            raise ValueError(f"Agent {command.agent_id} not found")
+            raise AgentNotFoundError(agent_id=command.agent_id)
 
         aggregate = AgentAggregate(command.agent_id)
         for event in events:
@@ -65,7 +71,7 @@ class CommandHandlers:
         """Handle reputation update."""
         events = await self._event_store.load_stream(command.agent_id)
         if not events:
-            raise ValueError(f"Agent {command.agent_id} not found")
+            raise AgentNotFoundError(agent_id=command.agent_id)
 
         aggregate = AgentAggregate(command.agent_id)
         for event in events:
@@ -100,14 +106,17 @@ class CommandHandlers:
         """Handle invoice settlement."""
         events = await self._event_store.load_stream(command.invoice_id)
         if not events:
-            raise ValueError(f"Invoice {command.invoice_id} not found")
+            raise InvoiceNotFoundError(invoice_id=command.invoice_id)
 
         aggregate = InvoiceAggregate(command.invoice_id)
         for event in events:
             aggregate._apply(event)
 
         if aggregate.status != "pending":
-            raise ValueError(f"Invoice {command.invoice_id} is already {aggregate.status}")
+            raise InvoiceAlreadySettledError(
+                invoice_id=command.invoice_id,
+                current_status=aggregate.status,
+            )
 
         aggregate.pay(tx_hash=f"0x{uuid4().hex}")
         await self._event_store.append_events(

@@ -9,6 +9,9 @@ from app.application.handlers.command_handlers import CommandHandlers
 from app.application.services.idempotency import IdempotencyService
 from app.application.services.rate_limiter import RateLimiter
 from app.infrastructure.db.repositories.event_store import PostgresEventStore
+from app.core.exceptions import (
+    DomainError,
+)
 
 router = APIRouter()
 
@@ -52,8 +55,8 @@ async def consume_resource(
     )
     try:
         session_id = await handlers.handle_consume_resource(command)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=str(e))
+    except DomainError as e:
+        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=e.to_dict())
 
     response = ConsumeResponse(
         session_id=session_id,

@@ -5,7 +5,7 @@ from typing import List
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Agent Platform"
     VERSION: str = "0.1.0"
-    DEBUG: bool = False
+    APP_DEBUG: bool = False
     ALLOWED_ORIGINS: List[str] = ["*"]
     DATABASE_URL: str = "postgresql+asyncpg://user:pass@postgres:5432/agent_platform"
     DATABASE_POOL_SIZE: int = 20
@@ -20,8 +20,13 @@ class Settings(BaseSettings):
     PAYMENT_VERIFIER_ADDRESS: str = ""
     TIMESCALEDB_URL: str = "postgresql+asyncpg://user:pass@timescaledb:5432/agent_analytics"
     PROMETHEUS_ENABLED: bool = True
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+
+    # ─── Pix / Stark Bank ────────────────────────────────────────────────────
+    STARK_BANK_API_KEY: str = ""
+    STARK_BANK_ENVIRONMENT: str = "sandbox"
+    STARK_BANK_WEBHOOK_URL: str = ""
+    STARK_BANK_WEBHOOK_SECRET: str = ""
+
+    model_config = {"env_file": ".env", "case_sensitive": True, "extra": "ignore"}
 
 settings = Settings()

@@ -6,13 +6,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.dependencies import engine
-from app.api.v1.endpoints import agents, consume, invoices, health
+from app.api.v1.endpoints import agents, api_keys, consume, invoices, health, pix
 from app.api.v1.middleware import RateLimitMiddleware
+from app.api.v1.middleware.error_handler import add_error_handlers
+from app.api.v1.middleware.security import (
+    SecurityHeadersMiddleware,
+    CorrelationIdMiddleware,
+    RequestLoggingMiddleware,
+)
 from app.api.websocket.event_handler import WebSocketEventHandler
 from app.infrastructure.messaging.kafka_producer import KafkaEventProducer
 
 # Setup logging
-setup_logging(settings.DEBUG)
+setup_logging(settings.APP_DEBUG)
 logger = logging.getLogger(__name__)
 
 # Global services
@@ -78,14 +84,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Security middleware (order matters: CorrelationId first for logging)
+app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
+
 # Rate limiting middleware
 app.add_middleware(RateLimitMiddleware, max_requests=100, window=60)
+
+# Error handlers (must be registered after middleware)
+add_error_handlers(app)
 
 # Include routers
 app.include_router(health.router, tags=["health"])
 app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
 app.include_router(consume.router, prefix="/api/v1/consume", tags=["consume"])
 app.include_router(invoices.router, prefix="/api/v1/invoices", tags=["invoices"])
+app.include_router(pix.router, prefix="/api/v1/pix", tags=["pix"])
+
+# API Key management router (requires authentication)
+app.include_router(api_keys.router, tags=["api-keys"])
 
 
 @app.websocket("/ws")

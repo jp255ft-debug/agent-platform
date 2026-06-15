@@ -8,6 +8,11 @@ from app.api.v1.schemas.agents import (
 from app.application.commands.register_agent import RegisterAgentCommand
 from app.application.handlers.command_handlers import CommandHandlers
 from app.infrastructure.db.repositories.event_store import PostgresEventStore
+from app.core.exceptions import (
+    AgentAlreadyExistsError,
+    AgentNotFoundError,
+    DomainError,
+)
 
 router = APIRouter()
 
@@ -31,8 +36,10 @@ async def register_agent(
     )
     try:
         await handlers.handle_register_agent(command)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except AgentAlreadyExistsError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.to_dict())
+    except DomainError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.to_dict())
 
     return AgentResponse(
         agent_id=body.agent_id,
@@ -83,8 +90,10 @@ async def delegate_agent(
     )
     try:
         await handlers.handle_delegate_agent(command)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except AgentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.to_dict())
+    except DomainError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.to_dict())
 
     return await get_agent(agent_id, db)
 
@@ -100,8 +109,10 @@ async def revoke_delegation(
     command = RevokeDelegationCommand(agent_id=agent_id)
     try:
         await handlers.handle_revoke_delegation(command)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except AgentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.to_dict())
+    except DomainError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.to_dict())
 
     return await get_agent(agent_id, db)
 
@@ -122,7 +133,9 @@ async def update_reputation(
     )
     try:
         await handlers.handle_update_reputation(command)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except AgentNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.to_dict())
+    except DomainError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.to_dict())
 
     return await get_agent(agent_id, db)

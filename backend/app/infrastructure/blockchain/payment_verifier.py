@@ -2,6 +2,14 @@
 from web3 import Web3
 from app.core.config import settings
 from app.infrastructure.blockchain.web3_client import Web3Client
+from app.core.exceptions import (
+    PaymentVerificationError,
+    TransactionNotFoundError,
+    TransactionFailedError,
+    SenderMismatchError,
+    RecipientMismatchError,
+    AmountMismatchError,
+)
 
 
 class PaymentVerifier:
@@ -27,16 +35,16 @@ class PaymentVerifier:
         """
         tx_hash = payment_proof.get("tx_hash")
         if not tx_hash:
-            raise ValueError("Missing tx_hash in payment proof")
+            raise PaymentVerificationError(reason="Missing tx_hash in payment proof")
 
         # Get transaction receipt
         receipt = self._client.w3.eth.get_transaction_receipt(tx_hash)
         if receipt is None:
-            raise ValueError(f"Transaction {tx_hash} not found")
+            raise TransactionNotFoundError(tx_hash=tx_hash)
 
         # Verify transaction was successful
         if receipt["status"] != 1:
-            raise ValueError(f"Transaction {tx_hash} failed")
+            raise TransactionFailedError(tx_hash=tx_hash, status=receipt["status"])
 
         # Get transaction details
         tx = self._client.w3.eth.get_transaction(tx_hash)
@@ -44,11 +52,14 @@ class PaymentVerifier:
         recipient = payment_proof.get("recipient", "").lower()
 
         if tx["from"].lower() != sender:
-            raise ValueError("Sender mismatch")
+            raise SenderMismatchError(expected=sender, actual=tx["from"].lower())
         if tx["to"] and tx["to"].lower() != recipient:
-            raise ValueError("Recipient mismatch")
+            raise RecipientMismatchError(expected=recipient, actual=tx["to"].lower())
         if tx["value"] < payment_proof.get("amount", 0):
-            raise ValueError("Amount mismatch")
+            raise AmountMismatchError(
+                expected=payment_proof.get("amount", 0),
+                actual=tx["value"],
+            )
 
         return {
             "verified": True,

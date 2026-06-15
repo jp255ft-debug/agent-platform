@@ -7,6 +7,11 @@ from app.api.v1.schemas.invoices import InvoiceResponse, InvoiceListResponse
 from app.application.commands.settle_invoice import SettleInvoiceCommand
 from app.application.handlers.command_handlers import CommandHandlers
 from app.infrastructure.db.repositories.event_store import PostgresEventStore
+from app.core.exceptions import (
+    InvoiceNotFoundError,
+    InvoiceAlreadySettledError,
+    DomainError,
+)
 
 router = APIRouter()
 
@@ -89,7 +94,11 @@ async def settle_invoice(
     command = SettleInvoiceCommand(invoice_id=invoice_id, agent_id="")
     try:
         await handlers.handle_settle_invoice(command)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except InvoiceNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.to_dict())
+    except InvoiceAlreadySettledError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=e.to_dict())
+    except DomainError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.to_dict())
 
     return await get_invoice(invoice_id, db)

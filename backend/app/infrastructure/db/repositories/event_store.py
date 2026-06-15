@@ -83,6 +83,9 @@ class PostgresEventStore(EventStore):
         from app.domain.events.payment_events import (
             PaymentReceived, PaymentVerified, PaymentFailed, InvoiceGenerated, InvoicePaid,
         )
+        from app.domain.events.api_key_events import (
+            APIKeyCreated, APIKeyRevoked, APIKeyExpired, APIKeyRotated, APIKeyUsed,
+        )
 
         event_type_map = {
             "AgentRegistered": AgentRegistered,
@@ -98,6 +101,11 @@ class PostgresEventStore(EventStore):
             "PaymentFailed": PaymentFailed,
             "InvoiceGenerated": InvoiceGenerated,
             "InvoicePaid": InvoicePaid,
+            "APIKeyCreated": APIKeyCreated,
+            "APIKeyRevoked": APIKeyRevoked,
+            "APIKeyExpired": APIKeyExpired,
+            "APIKeyRotated": APIKeyRotated,
+            "APIKeyUsed": APIKeyUsed,
         }
 
         event_cls = event_type_map.get(row.event_type)
