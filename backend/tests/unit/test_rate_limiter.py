@@ -63,7 +63,7 @@ class TestRateLimiter:
         from app.application.services.rate_limiter import RateLimiter
 
         mock_redis.hgetall = AsyncMock(
-            return_value={"tokens": "75", "last_refill": "1000000"}
+            return_value={b"tokens": b"75", b"last_refill": b"1000000"}
         )
         limiter = RateLimiter(mock_redis)
 

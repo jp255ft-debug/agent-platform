@@ -66,7 +66,7 @@ class TestReserveQuota:
 
         assert result == 1
         mock_redis.evalsha.assert_awaited_once_with(
-            "sha_reserve", 1, "quota:agent_123:llm", "100", "3600"
+            "sha_reserve", 1, ["quota:agent_123:llm"], ["100"], ["3600"]
         )
 
     async def test_reserve_quota_insufficient(self, lua_client, mock_redis):
@@ -104,7 +104,7 @@ class TestCheckRateLimit:
         call_args = mock_redis.evalsha.await_args
         assert call_args[0][0] == "sha_rate"
         assert call_args[0][1] == 1
-        assert call_args[0][2] == "rate_limit:agent_123:llm"
+        assert call_args[0][2] == ["rate_limit:agent_123:llm"]
 
     async def test_rate_limit_denied(self, lua_client, mock_redis):
         lua_client._scripts["rate_limit_check"] = "sha_rate"
@@ -131,7 +131,7 @@ class TestCheckIdempotency:
 
         assert result is None
         mock_redis.evalsha.assert_awaited_once_with(
-            "sha_idem", 1, "idempotency:key-123", "session-456", "86400"
+            "sha_idem", 1, ["idempotency:key-123"], ["session-456"], ["86400"]
         )
 
     async def test_idempotency_retry(self, lua_client, mock_redis):
