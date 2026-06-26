@@ -22,8 +22,16 @@ Todo plano deve conter:
 - **Passos**: Sequência de implementação
 - **Riscos**: O que pode dar errado
 - **Testes**: Como validar
+- **Verificação**: Como garantir que a implementação está correta
 
-### 4. Referências
+### 4. Verificação Obrigatória
+Antes de finalizar o plano, inclua uma seção de **Verificação** detalhando:
+- Quais **testes** serão executados para validar a implementação
+- Quais **linters/validadores** serão usados (`validate_python.py`, `validate_solidity.py`)
+- Quais **comandos** serão executados (ex: `pytest`, `forge test`, `ruff check`)
+- Como será verificado que **nenhum teste existente quebrou**
+
+### 5. Referências
 Consulte estes arquivos para contexto:
 - `.ai/CLAUDE.md` — Decisões arquiteturais
 - `.ai/knowledge-base/architecture_patterns.md` — Padrões
@@ -60,6 +68,12 @@ Consulte estes arquivos para contexto:
 ## 🧪 Testes
 - [Teste 1]
 - [Teste 2]
+
+## ✅ Verificação
+- [ ] `python .ai/validation/validate_python.py` — sem erros
+- [ ] `pytest backend/tests/unit/ -v` — todos verdes
+- [ ] `ruff check backend/app/` — sem violações
+- [ ] Nenhum teste existente quebrou
 
 ## 📚 Referências
 - ADR-00X: [link]
