@@ -1,6 +1,7 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
-import path = require('path');
+import * as path from 'path';
+import * as os from 'os';
 import { logger } from './logger';
 import { GPUCollector, GPUInfo } from './gpu_collector';
 import { KafkaPublisher } from './kafka_publisher';
@@ -29,7 +30,7 @@ interface NodeServiceConfig {
 function loadConfig(): NodeServiceConfig {
   return {
     grpcPort: parseInt(process.env.GRPC_PORT || '50051', 10),
-    providerId: process.env.PROVIDER_ID || `node-${require('os').hostname()}`,
+    providerId: process.env.PROVIDER_ID || `node-${os.hostname()}`,
     collectionIntervalMs: parseInt(process.env.COLLECTION_INTERVAL_MS || '30000', 10),
     gpuIndex: parseInt(process.env.GPU_INDEX || '0', 10),
     kafkaBrokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
