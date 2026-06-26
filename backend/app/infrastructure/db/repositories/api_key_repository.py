@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional
 
 from redis.asyncio import Redis
 from sqlalchemy import text
@@ -93,7 +93,7 @@ class APIKeyRepository:
                 if self._redis:
                     await self._redis.delete(f"api_key:{event.data['key_id']}")
 
-    async def get_key_hash(self, key_id: str) -> Tuple[Optional[str], Optional[str]]:
+    async def get_key_hash(self, key_id: str) -> tuple[Optional[str], Optional[str]]:
         """Retrieve (agent_id, key_hash) for a given key_id.
 
         Uses Redis cache for fast lookup, falls back to SQL table.

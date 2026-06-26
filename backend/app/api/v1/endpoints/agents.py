@@ -1,20 +1,25 @@
 """Agent management endpoints."""
 from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.dependencies import get_db_session
+
 from app.api.v1.schemas.agents import (
-    AgentCreate, AgentResponse, AgentDelegateRequest, AgentReputationUpdate,
+    AgentCreate,
+    AgentDelegateRequest,
+    AgentReputationUpdate,
+    AgentResponse,
 )
 from app.application.commands.register_agent import RegisterAgentCommand
 from app.application.handlers.command_handlers import CommandHandlers
-from app.infrastructure.db.repositories.event_store import PostgresEventStore
+from app.core.dependencies import get_db_session
 from app.core.exceptions import (
     AgentAlreadyExistsError,
     AgentNotFoundError,
     DomainError,
 )
+from app.infrastructure.db.repositories.event_store import PostgresEventStore
 
 router = APIRouter()
 

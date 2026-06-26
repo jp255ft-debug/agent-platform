@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, status
@@ -79,7 +79,7 @@ async def create_api_key(
 
     # Find the created key for expires_at
     created_key = next((k for k in aggregate.keys if k.key_id == key_id), None)
-    expires_at = created_key.expires_at if created_key else datetime.now(timezone.utc)
+    expires_at = created_key.expires_at if created_key else datetime.now(UTC)
 
     return APIKeyCreateResponse(
         key_id=key_id,
@@ -213,7 +213,7 @@ async def rotate_api_key(
 
     # Find the new key for expires_at
     new_key = next((k for k in aggregate.keys if k.key_id == new_key_id), None)
-    expires_at = new_key.expires_at if new_key else datetime.now(timezone.utc)
+    expires_at = new_key.expires_at if new_key else datetime.now(UTC)
 
     return APIKeyRotateResponse(
         new_key_id=new_key_id,

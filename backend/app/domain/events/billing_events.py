@@ -1,5 +1,6 @@
 from app.domain.events.base import DomainEvent
 
+
 class BillingSessionStarted(DomainEvent):
     def __init__(self, session_id: str, agent_id: str, resource_type: str):
         super().__init__(aggregate_id=session_id, data={

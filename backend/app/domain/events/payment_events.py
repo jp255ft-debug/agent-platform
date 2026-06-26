@@ -1,5 +1,6 @@
 from app.domain.events.base import DomainEvent
 
+
 class PaymentReceived(DomainEvent):
     def __init__(self, payment_id: str, sender: str, recipient: str, amount: int):
         super().__init__(aggregate_id=payment_id, data={

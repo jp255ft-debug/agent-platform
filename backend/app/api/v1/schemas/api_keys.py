@@ -1,6 +1,6 @@
 """Pydantic schemas for API key management."""
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -39,7 +39,7 @@ class APIKeyListResponse(BaseModel):
     """Response listing all API keys for an agent."""
 
     agent_id: str = Field(..., description="Agent ID")
-    keys: List[APIKeyInfo] = Field(default_factory=list, description="List of API keys")
+    keys: list[APIKeyInfo] = Field(default_factory=list, description="List of API keys")
 
 
 class APIKeyRevokeRequest(BaseModel):

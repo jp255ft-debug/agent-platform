@@ -1,7 +1,7 @@
 """io.net API data models."""
-from dataclasses import dataclass, field
-from typing import Optional, List
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 
 @dataclass
@@ -50,7 +50,7 @@ class PriceResponse:
     ionet_fee_percent: float
     replica_count: int
     gpus_per_vm: int
-    available_replica_count: List[int]
+    available_replica_count: list[int]
     discount: float = 0.0
     currency_conversion_fee: float = 0.0
     currency_conversion_fee_percent: float = 0.0
@@ -81,7 +81,7 @@ class DeploymentStatus:
 class HardwareFilter:
     """Filter parameters for listing GPU hardware."""
     search: Optional[str] = None
-    regions: Optional[List[str]] = None
+    regions: Optional[list[str]] = None
     min_gpu_memory: Optional[int] = None
     max_gpu_memory: Optional[int] = None
     min_vcpu: Optional[int] = None
@@ -100,21 +100,21 @@ class HardwareFilter:
         if self.regions:
             result["regions"] = ",".join(self.regions)
         if self.min_gpu_memory is not None:
-            result["min_gpu_memory"] = self.min_gpu_memory
+            result["min_gpu_memory"] = str(self.min_gpu_memory)
         if self.max_gpu_memory is not None:
-            result["max_gpu_memory"] = self.max_gpu_memory
+            result["max_gpu_memory"] = str(self.max_gpu_memory)
         if self.min_vcpu is not None:
-            result["min_vcpu"] = self.min_vcpu
+            result["min_vcpu"] = str(self.min_vcpu)
         if self.max_vcpu is not None:
-            result["max_vcpu"] = self.max_vcpu
+            result["max_vcpu"] = str(self.max_vcpu)
         if self.min_memory is not None:
-            result["min_memory"] = self.min_memory
+            result["min_memory"] = str(self.min_memory)
         if self.max_memory is not None:
-            result["max_memory"] = self.max_memory
+            result["max_memory"] = str(self.max_memory)
         if self.min_storage is not None:
-            result["min_storage"] = self.min_storage
+            result["min_storage"] = str(self.min_storage)
         if self.max_storage is not None:
-            result["max_storage"] = self.max_storage
+            result["max_storage"] = str(self.max_storage)
         if self.supplier:
             result["supplier"] = self.supplier
         return result

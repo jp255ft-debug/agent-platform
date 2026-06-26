@@ -1,20 +1,21 @@
 """Base domain event."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any, Optional
 from uuid import uuid4
-from typing import Dict, Any, Optional
+
 
 class DomainEvent:
-    def __init__(self, aggregate_id: str, data: Dict[str, Any] | None = None, correlation_id: Optional[str] = None):
+    def __init__(self, aggregate_id: str, data: dict[str, Any] | None = None, correlation_id: Optional[str] = None):
         self.event_id: str = str(uuid4())
         self.aggregate_id: str = aggregate_id
-        self.occurred_at: datetime = datetime.now(timezone.utc)
-        self.data: Dict[str, Any] = data or {}
+        self.occurred_at: datetime = datetime.now(UTC)
+        self.data: dict[str, Any] = data or {}
         self.correlation_id: Optional[str] = correlation_id
 
     def event_type(self) -> str:
         return self.__class__.__name__
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         result = {
             "event_id": self.event_id,
             "event_type": self.event_type(),

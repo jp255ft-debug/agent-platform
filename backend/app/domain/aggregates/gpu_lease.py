@@ -1,16 +1,16 @@
 """GPU Lease aggregate — manages GPU leasing lifecycle via io.net."""
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Any
+from datetime import UTC, datetime, timedelta
+from typing import Optional
 
 from app.domain.events.base import DomainEvent
 from app.domain.events.gpu_events import (
-    GPULeaseRequested,
-    GPULeaseProvisioned,
     GPULeaseActivated,
-    GPULeaseExtended,
-    GPULeaseTerminated,
     GPULeaseExpired,
+    GPULeaseExtended,
+    GPULeaseProvisioned,
+    GPULeaseRequested,
+    GPULeaseTerminated,
 )
 
 
@@ -51,7 +51,7 @@ class GPULeaseAggregate:
     expires_at: Optional[datetime] = None
     terminated_at: Optional[datetime] = None
     version: int = 0
-    _changes: List[DomainEvent] = field(default_factory=list)
+    _changes: list[DomainEvent] = field(default_factory=list)
 
     @staticmethod
     def request(
@@ -64,7 +64,7 @@ class GPULeaseAggregate:
         duration_hours: int,
     ) -> "GPULeaseAggregate":
         """Create a new GPU lease aggregate in REQUESTED status."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         lease = GPULeaseAggregate(
             lease_id=lease_id,
             agent_id=agent_id,
@@ -93,7 +93,7 @@ class GPULeaseAggregate:
         return lease
 
     @staticmethod
-    def rebuild(lease_id: str, events: List[DomainEvent]) -> "GPULeaseAggregate":
+    def rebuild(lease_id: str, events: list[DomainEvent]) -> "GPULeaseAggregate":
         """Rebuild aggregate state from event history."""
         lease = GPULeaseAggregate(lease_id=lease_id)
         for event in events:
@@ -127,7 +127,7 @@ class GPULeaseAggregate:
             raise ValueError(f"Cannot activate lease in status {self.status}")
 
         self.status = LeaseStatus.ACTIVE
-        self.activated_at = datetime.now(timezone.utc)
+        self.activated_at = datetime.now(UTC)
         self.expires_at = self.activated_at + timedelta(hours=self.duration_hours)
 
         event = GPULeaseActivated(
@@ -146,7 +146,7 @@ class GPULeaseAggregate:
             raise ValueError(f"Cannot extend lease in status {self.status}")
 
         self.duration_hours += additional_hours
-        self.expires_at = (self.expires_at or datetime.now(timezone.utc)) + timedelta(hours=additional_hours)
+        self.expires_at = (self.expires_at or datetime.now(UTC)) + timedelta(hours=additional_hours)
         self.status = LeaseStatus.EXTENDING
 
         event = GPULeaseExtended(
@@ -166,7 +166,7 @@ class GPULeaseAggregate:
             return
 
         self.status = LeaseStatus.TERMINATED
-        self.terminated_at = datetime.now(timezone.utc)
+        self.terminated_at = datetime.now(UTC)
 
         event = GPULeaseTerminated(
             aggregate_id=self.lease_id,
@@ -184,7 +184,7 @@ class GPULeaseAggregate:
 
         event = GPULeaseExpired(
             aggregate_id=self.lease_id,
-            data={"expired_at": datetime.now(timezone.utc).isoformat()},
+            data={"expired_at": datetime.now(UTC).isoformat()},
         )
         self._apply(event)
         self._changes.append(event)
@@ -229,7 +229,7 @@ class GPULeaseAggregate:
             self.status = LeaseStatus.EXPIRED
         self.version += 1
 
-    def get_changes(self) -> List[DomainEvent]:
+    def get_changes(self) -> list[DomainEvent]:
         """Return pending changes and clear the list."""
         return self._changes.copy()
 

@@ -353,49 +353,49 @@ class TestUpdateGPUSpecs:
 # ---------------------------------------------------------------------------
 
 class TestRecordJobCompletion:
-    def test_successful_job_increases_reputation(self, registered_provider):
-        registered_provider.record_job_completion(
+    def test_successful_job_increases_reputation(self, active_provider):
+        active_provider.record_job_completion(
             session_id="session-1",
             agent_id="agent-1",
             success=True,
             compute_time_seconds=3600,
         )
-        assert registered_provider.reputation_score == 100  # capped at 100
-        assert registered_provider.total_jobs_completed == 1
+        assert active_provider.reputation_score == 100  # capped at 100
+        assert active_provider.total_jobs_completed == 1
 
-    def test_failed_job_decreases_reputation(self, registered_provider):
-        registered_provider.record_job_completion(
+    def test_failed_job_decreases_reputation(self, active_provider):
+        active_provider.record_job_completion(
             session_id="session-1",
             agent_id="agent-1",
             success=False,
             compute_time_seconds=3600,
         )
-        assert registered_provider.reputation_score == 98
-        assert registered_provider.total_jobs_failed == 1
+        assert active_provider.reputation_score == 98
+        assert active_provider.total_jobs_failed == 1
 
-    def test_reputation_capped_at_100(self, registered_provider):
+    def test_reputation_capped_at_100(self, active_provider):
         for _ in range(5):
-            registered_provider.record_job_completion(
+            active_provider.record_job_completion(
                 session_id="s1", agent_id="a1", success=True, compute_time_seconds=3600,
             )
-        assert registered_provider.reputation_score == 100
+        assert active_provider.reputation_score == 100
 
-    def test_reputation_floor_at_0(self, registered_provider):
+    def test_reputation_floor_at_0(self, active_provider):
         for _ in range(60):
-            registered_provider.record_job_completion(
+            active_provider.record_job_completion(
                 session_id="s1", agent_id="a1", success=False, compute_time_seconds=3600,
             )
-        assert registered_provider.reputation_score == 0
+        assert active_provider.reputation_score == 0
 
-    def test_job_with_proof_hash(self, registered_provider):
-        registered_provider.record_job_completion(
+    def test_job_with_proof_hash(self, active_provider):
+        active_provider.record_job_completion(
             session_id="session-1",
             agent_id="agent-1",
             success=True,
             compute_time_seconds=3600,
             proof_hash="0xabc123",
         )
-        changes = registered_provider.get_changes()
+        changes = active_provider.get_changes()
         assert changes[0].data["proof_hash"] == "0xabc123"
 
 
@@ -419,23 +419,23 @@ class TestProviderProperties:
     def test_uptime_percentage_no_jobs(self, registered_provider):
         assert registered_provider.uptime_percentage == 0.0
 
-    def test_uptime_percentage_all_success(self, registered_provider):
-        registered_provider.record_job_completion(
+    def test_uptime_percentage_all_success(self, active_provider):
+        active_provider.record_job_completion(
             session_id="s1", agent_id="a1", success=True, compute_time_seconds=3600,
         )
-        registered_provider.record_job_completion(
+        active_provider.record_job_completion(
             session_id="s2", agent_id="a1", success=True, compute_time_seconds=1800,
         )
-        assert registered_provider.uptime_percentage == 100.0
+        assert active_provider.uptime_percentage == 100.0
 
-    def test_uptime_percentage_mixed(self, registered_provider):
-        registered_provider.record_job_completion(
+    def test_uptime_percentage_mixed(self, active_provider):
+        active_provider.record_job_completion(
             session_id="s1", agent_id="a1", success=True, compute_time_seconds=3600,
         )
-        registered_provider.record_job_completion(
+        active_provider.record_job_completion(
             session_id="s2", agent_id="a1", success=False, compute_time_seconds=1800,
         )
-        assert registered_provider.uptime_percentage == 50.0
+        assert active_provider.uptime_percentage == 50.0
 
     def test_can_be_activated_true_with_sufficient_stake(self, registered_provider):
         registered_provider.stake(MIN_STAKE_REQUIRED)

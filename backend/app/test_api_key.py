@@ -1,4 +1,5 @@
-import urllib.request, json
+import json
+import urllib.request
 
 # Create API Key
 body = json.dumps({'agent_id': 'agent_test_123', 'expires_in_days': 90}).encode()

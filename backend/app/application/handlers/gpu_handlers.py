@@ -1,13 +1,17 @@
 """GPU leasing command handlers."""
-from typing import Optional, List
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Optional
 
-from app.infrastructure.depin.ionet_client import IonetClient
-from app.infrastructure.depin.ionet_models import HardwareFilter
+from app.application.commands.lease_gpu import (
+    ExtendLeaseCommand,
+    LeaseGPUCommand,
+    TerminateLeaseCommand,
+)
 from app.domain.aggregates.gpu_lease import GPULeaseAggregate, LeaseStatus
 from app.domain.repositories.event_store import EventStore
-from app.application.commands.lease_gpu import LeaseGPUCommand, ExtendLeaseCommand, TerminateLeaseCommand
+from app.infrastructure.depin.ionet_client import IonetClient
+from app.infrastructure.depin.ionet_models import HardwareFilter
 
 
 class GPUHandlers:
@@ -33,7 +37,7 @@ class GPUHandlers:
         search: Optional[str] = None,
         min_vram: Optional[int] = None,
         max_price: Optional[float] = None,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """List available GPUs with optional filters."""
         hw_filter = HardwareFilter(search=search, min_gpu_memory=min_vram)
         gpus = await self._ionet.list_gpus(hw_filter)
@@ -193,7 +197,7 @@ class GPUHandlers:
         remaining_hours = None
         is_active = lease.status in (LeaseStatus.ACTIVE, LeaseStatus.EXTENDING)
         if is_active and lease.expires_at:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             remaining = (lease.expires_at - now).total_seconds() / 3600
             remaining_hours = max(0.0, round(remaining, 2))
 

@@ -1,12 +1,16 @@
 """io.net API client for GPU leasing (VMaaS + CaaS + Intelligence)."""
+from typing import Any, Optional
+
 import httpx
-from typing import List, Optional, Dict, Any
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.config import settings
 from app.infrastructure.depin.ionet_models import (
-    GPUHardware, PriceResponse, DeployResponse,
-    DeploymentStatus, HardwareFilter,
+    DeploymentStatus,
+    DeployResponse,
+    GPUHardware,
+    HardwareFilter,
+    PriceResponse,
 )
 
 
@@ -70,7 +74,7 @@ class IonetClient:
     # =========================================================================
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
-    async def list_gpus(self, filters: Optional[HardwareFilter] = None) -> List[GPUHardware]:
+    async def list_gpus(self, filters: Optional[HardwareFilter] = None) -> list[GPUHardware]:
         """
         GET /vmaas/hardware
         List available GPU hardware for leasing.
@@ -112,7 +116,7 @@ class IonetClient:
         return DeployResponse(**response.json())
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
-    async def extend_cluster(self, deployment_id: str, additional_hours: int) -> Dict[str, Any]:
+    async def extend_cluster(self, deployment_id: str, additional_hours: int) -> dict[str, Any]:
         """
         POST /vmaas/extend
         Extend the duration of a running cluster.
@@ -126,7 +130,7 @@ class IonetClient:
         return response.json()
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
-    async def destroy_cluster(self, deployment_id: str) -> Dict[str, Any]:
+    async def destroy_cluster(self, deployment_id: str) -> dict[str, Any]:
         """
         DELETE /vmaas/destroy
         Terminate a cluster early (kill-switch).
@@ -152,9 +156,9 @@ class IonetClient:
         self,
         image: str,
         gpu_count: int = 1,
-        env_vars: Optional[Dict[str, str]] = None,
-        command: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        env_vars: Optional[dict[str, str]] = None,
+        command: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
         """
         POST /caas/deploy
         Deploy a container on GPU infrastructure.
@@ -173,7 +177,7 @@ class IonetClient:
     # IO Intelligence — AI Agents & Inference
     # =========================================================================
 
-    async def list_models(self, supports_attestation: bool = False) -> List[Dict[str, Any]]:
+    async def list_models(self, supports_attestation: bool = False) -> list[dict[str, Any]]:
         """List available AI models."""
         url = f"{self.INTELLIGENCE_URL}/models"
         response = await self._client.get(url)
@@ -186,10 +190,10 @@ class IonetClient:
     async def chat_completion(
         self,
         model_id: str,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         temperature: float = 0.7,
         max_tokens: int = 1000,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         POST /v1/chat/completions
         Run inference with a selected model.
@@ -207,7 +211,7 @@ class IonetClient:
         response.raise_for_status()
         return response.json()
 
-    async def get_attestation(self, model_id: str, nonce: str) -> Dict[str, Any]:
+    async def get_attestation(self, model_id: str, nonce: str) -> dict[str, Any]:
         """
         POST /private/attestation
         Get GPU attestation for verifiable inference.

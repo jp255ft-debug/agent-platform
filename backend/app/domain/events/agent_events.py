@@ -1,5 +1,6 @@
 from app.domain.events.base import DomainEvent
 
+
 class AgentRegistered(DomainEvent):
     def __init__(self, agent_id: str, owner_address: str, delegation_address: str | None = None):
         super().__init__(aggregate_id=agent_id, data={

@@ -2,7 +2,9 @@
 import json
 import logging
 from typing import Optional
+
 from aiokafka import AIOKafkaProducer
+
 from app.core.config import settings
 from app.domain.events.base import DomainEvent
 

@@ -1,7 +1,12 @@
-from typing import List
-from app.domain.events.base import DomainEvent
+
 from app.domain.events.agent_events import (
-    AgentRegistered, AgentDelegated, AgentDelegationRevoked, AgentReputationUpdated)
+    AgentDelegated,
+    AgentDelegationRevoked,
+    AgentRegistered,
+    AgentReputationUpdated,
+)
+from app.domain.events.base import DomainEvent
+
 
 class AgentAggregate:
     def __init__(self, agent_id: str):
@@ -11,7 +16,7 @@ class AgentAggregate:
         self.delegation_active: bool = False
         self.reputation_score: int = 100
         self.version: int = 0
-        self._changes: List[DomainEvent] = []
+        self._changes: list[DomainEvent] = []
 
     @staticmethod
     def register(agent_id: str, owner_address: str, delegation_address: str | None = None):
@@ -49,7 +54,7 @@ class AgentAggregate:
             self.reputation_score = event.data["new_score"]
         self.version += 1
 
-    def get_changes(self) -> List[DomainEvent]:
+    def get_changes(self) -> list[DomainEvent]:
         return self._changes.copy()
 
     def clear_changes(self) -> None:

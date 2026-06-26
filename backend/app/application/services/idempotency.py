@@ -1,5 +1,6 @@
 from redis.asyncio import Redis
 
+
 class IdempotencyService:
     def __init__(self, redis: Redis):
         self._redis = redis

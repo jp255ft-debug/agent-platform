@@ -1,6 +1,7 @@
-from typing import List
+
 from app.domain.events.base import DomainEvent
 from app.domain.events.payment_events import InvoiceGenerated, InvoicePaid
+
 
 class InvoiceAggregate:
     def __init__(self, invoice_id: str):
@@ -10,7 +11,7 @@ class InvoiceAggregate:
         self.status: str = "pending"
         self.due_date: str | None = None
         self.version: int = 0
-        self._changes: List[DomainEvent] = []
+        self._changes: list[DomainEvent] = []
 
     @staticmethod
     def generate(invoice_id: str, agent_id: str, amount: int, due_date: str):
@@ -35,7 +36,7 @@ class InvoiceAggregate:
             self.status = "paid"
         self.version += 1
 
-    def get_changes(self) -> List[DomainEvent]:
+    def get_changes(self) -> list[DomainEvent]:
         return self._changes.copy()
 
     def clear_changes(self) -> None:

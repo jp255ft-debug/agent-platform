@@ -1,20 +1,24 @@
 """Command handlers - process commands and produce events."""
 from uuid import uuid4
-from app.domain.aggregates.agent import AgentAggregate
-from app.domain.aggregates.billing_session import BillingSessionAggregate
-from app.domain.aggregates.invoice import InvoiceAggregate
-from app.domain.repositories.event_store import EventStore
-from app.application.commands.register_agent import (
-    RegisterAgentCommand, DelegateAgentCommand, RevokeDelegationCommand, UpdateReputationCommand,
-)
+
 from app.application.commands.consume_resource import ConsumeResourceCommand
+from app.application.commands.register_agent import (
+    DelegateAgentCommand,
+    RegisterAgentCommand,
+    RevokeDelegationCommand,
+    UpdateReputationCommand,
+)
 from app.application.commands.settle_invoice import SettleInvoiceCommand
 from app.core.exceptions import (
     AgentAlreadyExistsError,
     AgentNotFoundError,
-    InvoiceNotFoundError,
     InvoiceAlreadySettledError,
+    InvoiceNotFoundError,
 )
+from app.domain.aggregates.agent import AgentAggregate
+from app.domain.aggregates.billing_session import BillingSessionAggregate
+from app.domain.aggregates.invoice import InvoiceAggregate
+from app.domain.repositories.event_store import EventStore
 
 
 class CommandHandlers:

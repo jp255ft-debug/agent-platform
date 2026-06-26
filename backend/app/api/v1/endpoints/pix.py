@@ -19,8 +19,8 @@ from app.api.v1.schemas.pix import (
     PixStatusResponse,
     PixWebhookEvent,
 )
-from app.infrastructure.payments.pix_client import PixClient, PixClientError
 from app.domain.events.payment_events import PixPaymentReceived
+from app.infrastructure.payments.pix_client import PixClient, PixClientError
 
 logger = logging.getLogger(__name__)
 

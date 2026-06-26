@@ -50,7 +50,8 @@ class TestIonetClientInit:
             assert client.auth_token == "io-v2-test-token"
             mock_httpx.assert_called_once()
             call_kwargs = mock_httpx.call_args.kwargs
-            assert call_kwargs["headers"]["Authorization"] == "Bearer io-v2-test-token"
+            # VMaaS uses x-api-key header for both API keys and JWT tokens
+            assert call_kwargs["headers"]["x-api-key"] == "io-v2-test-token"
 
     def test_init_without_credentials_raises(self):
         with patch("app.infrastructure.depin.ionet_client.settings") as mock_settings:
@@ -136,7 +137,7 @@ class TestListGPUs:
         params = mock_client._client.get.call_args.kwargs["params"]
         assert params["search"] == "RTX"
         assert params["regions"] == "US-East,EU-West"
-        assert params["min_gpu_memory"] == 16
+        assert params["min_gpu_memory"] == "16"
         assert params["supplier"] == "internal"
 
     @pytest.mark.asyncio
@@ -411,20 +412,20 @@ class TestHardwareFilter:
         result = hw_filter.to_dict()
         assert result["search"] == "RTX"
         assert result["regions"] == "US-East,EU-West"
-        assert result["min_gpu_memory"] == 16
-        assert result["max_gpu_memory"] == 80
-        assert result["min_vcpu"] == 8
-        assert result["max_vcpu"] == 64
-        assert result["min_memory"] == 32
-        assert result["max_memory"] == 256
-        assert result["min_storage"] == 100
-        assert result["max_storage"] == 2000
+        assert result["min_gpu_memory"] == "16"
+        assert result["max_gpu_memory"] == "80"
+        assert result["min_vcpu"] == "8"
+        assert result["max_vcpu"] == "64"
+        assert result["min_memory"] == "32"
+        assert result["max_memory"] == "256"
+        assert result["min_storage"] == "100"
+        assert result["max_storage"] == "2000"
         assert result["supplier"] == "internal"
 
     def test_to_dict_partial(self):
         hw_filter = HardwareFilter(search="A100", min_gpu_memory=40)
         result = hw_filter.to_dict()
         assert result["search"] == "A100"
-        assert result["min_gpu_memory"] == 40
+        assert result["min_gpu_memory"] == "40"
         assert "regions" not in result
         assert "max_gpu_memory" not in result

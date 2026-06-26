@@ -11,15 +11,13 @@ This eliminates the need for polling and keeps the GPULeaseAggregate in sync.
 """
 import logging
 from typing import Optional
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
 from app.core.config import settings
-from app.infrastructure.depin.ionet_models import GPUHardware
+from app.core.dependencies import get_event_store
 from app.domain.aggregates.gpu_lease import GPULeaseAggregate
 from app.domain.repositories.event_store import EventStore
-from app.core.dependencies import get_event_store
 
 logger = logging.getLogger(__name__)
 

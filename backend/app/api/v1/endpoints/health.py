@@ -1,11 +1,12 @@
 """Health check endpoint."""
 from fastapi import APIRouter, Depends
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.schemas.health import HealthResponse
 from app.core.config import settings
 from app.core.dependencies import get_db_session, get_redis
-from app.api.v1.schemas.health import HealthResponse
 
 router = APIRouter()
 

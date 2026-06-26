@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class ConsumeResourceCommand:
     agent_id: str

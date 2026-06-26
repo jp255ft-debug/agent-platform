@@ -1,8 +1,14 @@
-from typing import List, Optional
+from typing import Optional
+
 from app.domain.events.base import DomainEvent
 from app.domain.events.billing_events import (
-    BillingSessionStarted, ResourceConsumed, ResourceConsumedV2,
-    BillingSessionClosed, BillingSessionSettled)
+    BillingSessionClosed,
+    BillingSessionSettled,
+    BillingSessionStarted,
+    ResourceConsumed,
+    ResourceConsumedV2,
+)
+
 
 class BillingSessionAggregate:
     """Agregado de sessão de billing com suporte a DePIN Procurement.
@@ -20,7 +26,7 @@ class BillingSessionAggregate:
         self.total_cost_micro_usdc: int = 0
         self.status: str = "pending"
         self.version: int = 0
-        self._changes: List[DomainEvent] = []
+        self._changes: list[DomainEvent] = []
 
     @staticmethod
     def start(session_id: str, agent_id: str, resource_type: str,
@@ -83,7 +89,7 @@ class BillingSessionAggregate:
             self.status = "settled"
         self.version += 1
 
-    def get_changes(self) -> List[DomainEvent]:
+    def get_changes(self) -> list[DomainEvent]:
         return self._changes.copy()
 
     def clear_changes(self) -> None:

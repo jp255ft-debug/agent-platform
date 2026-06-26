@@ -1,8 +1,10 @@
 """PostgreSQL snapshot repository implementation."""
 import json
 from typing import Optional
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.domain.repositories.snapshot_repo import SnapshotRepository
 
 

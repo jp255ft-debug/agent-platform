@@ -1,5 +1,6 @@
 from typing import Protocol
 
+
 class SnapshotRepository(Protocol):
     async def save_snapshot(self, aggregate_id: str, aggregate_type: str,
         data: dict, version: int) -> None: ...

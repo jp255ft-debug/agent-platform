@@ -9,20 +9,20 @@ computacionais em uma rede DePIN, incluindo:
 - Reputação baseada em jobs concluídos
 """
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any, Optional
 
 from app.domain.events.base import DomainEvent
 from app.domain.events.provider_events import (
-    ProviderRegistered,
-    ProviderStatusChanged,
-    HealthReported,
-    SlashingApplied,
-    ProviderStaked,
-    ProviderUnstaked,
     GPUSpecsUpdated,
+    HealthReported,
     ProviderJobCompleted,
+    ProviderRegistered,
+    ProviderStaked,
+    ProviderStatusChanged,
+    ProviderUnstaked,
+    SlashingApplied,
 )
 
 
@@ -57,7 +57,7 @@ class GPUSpecs:
     driver_version: str            # Versão do driver NVIDIA
     price_per_tflops_hour: float   # Preço em USDC por TFLOPS/hora
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "model": self.model,
             "vram_gb": self.vram_gb,
@@ -70,7 +70,7 @@ class GPUSpecs:
         }
 
     @staticmethod
-    def from_dict(data: Dict[str, Any]) -> "GPUSpecs":
+    def from_dict(data: dict[str, Any]) -> "GPUSpecs":
         return GPUSpecs(
             model=data.get("model", "unknown"),
             vram_gb=data.get("vram_gb", 0),
@@ -113,7 +113,7 @@ class ProviderAggregate:
     registered_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     version: int = 0
-    _changes: List[DomainEvent] = field(default_factory=list)
+    _changes: list[DomainEvent] = field(default_factory=list)
 
     # =========================================================================
     # Factory Methods
@@ -130,7 +130,7 @@ class ProviderAggregate:
         O provedor nasce no status PENDING e precisa de stake mínimo
         para ser ativado.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         provider = ProviderAggregate(
             provider_id=provider_id,
             owner_address=owner_address,
@@ -227,7 +227,7 @@ class ProviderAggregate:
         self,
         uptime_seconds: int,
         is_online: bool,
-        gpu_stats: Optional[Dict[str, Any]] = None,
+        gpu_stats: Optional[dict[str, Any]] = None,
     ) -> None:
         """Recebe relatório de telemetria do nó via gRPC.
 
@@ -240,7 +240,7 @@ class ProviderAggregate:
             return  # Ignora health reports se não estiver ativo
 
         self.total_uptime_seconds += uptime_seconds if is_online else 0
-        self.last_health_report = datetime.now(timezone.utc)
+        self.last_health_report = datetime.now(UTC)
 
         event = HealthReported(
             aggregate_id=self.provider_id,
@@ -465,7 +465,7 @@ class ProviderAggregate:
             if specs_data:
                 self.gpu_specs = GPUSpecs.from_dict(specs_data)
             self.registered_at = datetime.fromisoformat(
-                event.data.get("registered_at", datetime.now(timezone.utc).isoformat())
+                event.data.get("registered_at", datetime.now(UTC).isoformat())
             )
 
         elif isinstance(event, ProviderStatusChanged):
@@ -505,9 +505,9 @@ class ProviderAggregate:
                 self.reputation_score = max(0, self.reputation_score - 2)
 
         self.version += 1
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(UTC)
 
-    def get_changes(self) -> List[DomainEvent]:
+    def get_changes(self) -> list[DomainEvent]:
         """Retorna eventos não persistidos desde o último clear_changes()."""
         return self._changes.copy()
 

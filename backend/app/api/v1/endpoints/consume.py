@@ -2,16 +2,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.dependencies import get_db_session, get_redis
-from app.api.v1.schemas.consume import ConsumeRequest, ConsumeResponse, BillingSessionResponse
+
+from app.api.v1.schemas.consume import BillingSessionResponse, ConsumeRequest, ConsumeResponse
 from app.application.commands.consume_resource import ConsumeResourceCommand
 from app.application.handlers.command_handlers import CommandHandlers
 from app.application.services.idempotency import IdempotencyService
 from app.application.services.rate_limiter import RateLimiter
-from app.infrastructure.db.repositories.event_store import PostgresEventStore
+from app.core.dependencies import get_db_session, get_redis
 from app.core.exceptions import (
     DomainError,
 )
+from app.infrastructure.db.repositories.event_store import PostgresEventStore
 
 router = APIRouter()
 

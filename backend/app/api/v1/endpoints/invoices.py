@@ -1,17 +1,18 @@
 """Invoice management endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from app.core.dependencies import get_db_session
-from app.api.v1.schemas.invoices import InvoiceResponse, InvoiceListResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.schemas.invoices import InvoiceListResponse, InvoiceResponse
 from app.application.commands.settle_invoice import SettleInvoiceCommand
 from app.application.handlers.command_handlers import CommandHandlers
-from app.infrastructure.db.repositories.event_store import PostgresEventStore
+from app.core.dependencies import get_db_session
 from app.core.exceptions import (
-    InvoiceNotFoundError,
-    InvoiceAlreadySettledError,
     DomainError,
+    InvoiceAlreadySettledError,
+    InvoiceNotFoundError,
 )
+from app.infrastructure.db.repositories.event_store import PostgresEventStore
 
 router = APIRouter()
 

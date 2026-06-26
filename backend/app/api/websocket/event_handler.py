@@ -1,7 +1,7 @@
 """WebSocket event handler for real-time updates."""
 import json
 import logging
-from typing import Set
+
 from fastapi import WebSocket, WebSocketDisconnect
 
 
@@ -9,7 +9,7 @@ class ConnectionManager:
     """Manages WebSocket connections."""
 
     def __init__(self):
-        self._connections: Set[WebSocket] = set()
+        self._connections: set[WebSocket] = set()
 
     async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()

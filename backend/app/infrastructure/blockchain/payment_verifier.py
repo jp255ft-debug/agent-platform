@@ -1,15 +1,16 @@
 """x402 payment verification service."""
 from web3 import Web3
+
 from app.core.config import settings
-from app.infrastructure.blockchain.web3_client import Web3Client
 from app.core.exceptions import (
-    PaymentVerificationError,
-    TransactionNotFoundError,
-    TransactionFailedError,
-    SenderMismatchError,
-    RecipientMismatchError,
     AmountMismatchError,
+    PaymentVerificationError,
+    RecipientMismatchError,
+    SenderMismatchError,
+    TransactionFailedError,
+    TransactionNotFoundError,
 )
+from app.infrastructure.blockchain.web3_client import Web3Client
 
 
 class PaymentVerifier:

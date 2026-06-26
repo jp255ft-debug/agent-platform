@@ -5,18 +5,20 @@ Ativado automaticamente quando IO_NET_SIMULATOR=true no .env ou quando
 nenhuma credencial válida da io.net está configurada.
 """
 import uuid
-from datetime import datetime, timezone, timedelta
-from typing import List, Optional, Dict, Any
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 
 from app.infrastructure.depin.ionet_models import (
-    GPUHardware, PriceResponse, DeployResponse,
-    DeploymentStatus, HardwareFilter,
+    DeploymentStatus,
+    DeployResponse,
+    GPUHardware,
+    HardwareFilter,
+    PriceResponse,
 )
-
 
 # ─── Dados mockados de GPUs realistas ────────────────────────────────────────
 
-MOCK_GPUS: List[dict] = [
+MOCK_GPUS: list[dict] = [
     {
         "id": "gpu-rtx4090-001",
         "name": "RTX 4090",
@@ -179,11 +181,11 @@ class IonetSimulator:
     """
 
     def __init__(self):
-        self._deployments: Dict[str, dict] = {}
+        self._deployments: dict[str, dict] = {}
 
     # ─── VMaaS — GPU Cluster Management ──────────────────────────────────────
 
-    async def list_gpus(self, filters: Optional[HardwareFilter] = None) -> List[GPUHardware]:
+    async def list_gpus(self, filters: Optional[HardwareFilter] = None) -> list[GPUHardware]:
         """Simula listagem de GPUs disponíveis."""
         gpus = [GPUHardware(**h) for h in MOCK_GPUS]
 
@@ -243,7 +245,7 @@ class IonetSimulator:
             raise RuntimeError(f"Hardware '{gpu['name']}' is sold out")
 
         deployment_id = f"sim-dep-{uuid.uuid4().hex[:12]}"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         self._deployments[deployment_id] = {
             "deployment_id": deployment_id,
@@ -262,7 +264,7 @@ class IonetSimulator:
             message=f"Cluster provisioning started: {replica_count}x {gpu['name']} for {duration_hours}h",
         )
 
-    async def extend_cluster(self, deployment_id: str, additional_hours: int) -> Dict[str, Any]:
+    async def extend_cluster(self, deployment_id: str, additional_hours: int) -> dict[str, Any]:
         """Simula extensão de cluster."""
         dep = self._deployments.get(deployment_id)
         if not dep:
@@ -274,7 +276,7 @@ class IonetSimulator:
             "new_expires_at": dep["expires_at"].isoformat(),
         }
 
-    async def destroy_cluster(self, deployment_id: str) -> Dict[str, Any]:
+    async def destroy_cluster(self, deployment_id: str) -> dict[str, Any]:
         """Simula destruição de cluster."""
         dep = self._deployments.get(deployment_id)
         if not dep:
@@ -301,9 +303,9 @@ class IonetSimulator:
         self,
         image: str,
         gpu_count: int = 1,
-        env_vars: Optional[Dict[str, str]] = None,
-        command: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        env_vars: Optional[dict[str, str]] = None,
+        command: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
         """Simula deploy de container."""
         return {
             "deployment_id": f"sim-container-{uuid.uuid4().hex[:12]}",
@@ -312,7 +314,7 @@ class IonetSimulator:
 
     # ─── IO Intelligence — AI Agents & Inference ─────────────────────────────
 
-    async def list_models(self, supports_attestation: bool = False) -> List[Dict[str, Any]]:
+    async def list_models(self, supports_attestation: bool = False) -> list[dict[str, Any]]:
         """Simula listagem de modelos de IA."""
         models = [
             {"id": "llama-3-70b", "name": "Llama 3 70B", "supports_attestation": True},
@@ -327,10 +329,10 @@ class IonetSimulator:
     async def chat_completion(
         self,
         model_id: str,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         temperature: float = 0.7,
         max_tokens: int = 1000,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Simula chat completion."""
         return {
             "id": f"sim-chat-{uuid.uuid4().hex[:12]}",
@@ -344,7 +346,7 @@ class IonetSimulator:
             ],
         }
 
-    async def get_attestation(self, model_id: str, nonce: str) -> Dict[str, Any]:
+    async def get_attestation(self, model_id: str, nonce: str) -> dict[str, Any]:
         """Simula atestação de GPU."""
         return {
             "attestation": f"0x{uuid.uuid4().hex}",

@@ -1,13 +1,15 @@
 """PostgreSQL event store implementation."""
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Optional
+
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions import ConcurrencyError
 from app.domain.events.base import DomainEvent
 from app.domain.repositories.event_store import EventStore
-from app.core.exceptions import ConcurrencyError
 from app.infrastructure.db.upcasters import EventUpcaster
 
 
@@ -18,7 +20,7 @@ class PostgresEventStore(EventStore):
         self._session = session
 
     async def append_events(
-        self, stream_id: str, events: List[DomainEvent],
+        self, stream_id: str, events: list[DomainEvent],
         expected_version: Optional[int] = None,
     ) -> None:
         """Append events to a stream with optimistic concurrency control.
@@ -69,7 +71,7 @@ class PostgresEventStore(EventStore):
         result = await self._session.execute(query, {"stream_id": stream_id})
         return result.scalar() or 0
 
-    async def load_stream(self, stream_id: str) -> List[DomainEvent]:
+    async def load_stream(self, stream_id: str) -> list[DomainEvent]:
         """Load all events for a stream in order."""
         query = text("""
             SELECT event_id, stream_id, version, event_type,
@@ -84,7 +86,7 @@ class PostgresEventStore(EventStore):
 
     async def load_stream_from_version(
         self, stream_id: str, from_version: int,
-    ) -> List[DomainEvent]:
+    ) -> list[DomainEvent]:
         """Load events from a specific version onwards."""
         query = text("""
             SELECT event_id, stream_id, version, event_type,
@@ -109,21 +111,39 @@ class PostgresEventStore(EventStore):
         requiring a backfill migration on the database.
         """
         from app.domain.events.agent_events import (
-            AgentRegistered, AgentDelegated, AgentDelegationRevoked, AgentReputationUpdated,
-        )
-        from app.domain.events.billing_events import (
-            BillingSessionStarted, ResourceConsumed, ResourceConsumedV2,
-            BillingSessionClosed, BillingSessionSettled,
-        )
-        from app.domain.events.payment_events import (
-            PaymentReceived, PaymentVerified, PaymentFailed, InvoiceGenerated, InvoicePaid,
+            AgentDelegated,
+            AgentDelegationRevoked,
+            AgentRegistered,
+            AgentReputationUpdated,
         )
         from app.domain.events.api_key_events import (
-            APIKeyCreated, APIKeyRevoked, APIKeyExpired, APIKeyRotated, APIKeyUsed,
+            APIKeyCreated,
+            APIKeyExpired,
+            APIKeyRevoked,
+            APIKeyRotated,
+            APIKeyUsed,
+        )
+        from app.domain.events.billing_events import (
+            BillingSessionClosed,
+            BillingSessionSettled,
+            BillingSessionStarted,
+            ResourceConsumed,
+            ResourceConsumedV2,
         )
         from app.domain.events.gpu_events import (
-            GPULeaseRequested, GPULeaseProvisioned, GPULeaseActivated,
-            GPULeaseExtended, GPULeaseTerminated, GPULeaseExpired,
+            GPULeaseActivated,
+            GPULeaseExpired,
+            GPULeaseExtended,
+            GPULeaseProvisioned,
+            GPULeaseRequested,
+            GPULeaseTerminated,
+        )
+        from app.domain.events.payment_events import (
+            InvoiceGenerated,
+            InvoicePaid,
+            PaymentFailed,
+            PaymentReceived,
+            PaymentVerified,
         )
 
         event_type_map = {

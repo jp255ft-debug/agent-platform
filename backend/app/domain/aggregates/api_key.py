@@ -2,16 +2,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Optional
 
-from app.domain.events.base import DomainEvent
 from app.domain.events.api_key_events import (
     APIKeyCreated,
-    APIKeyRevoked,
     APIKeyExpired,
+    APIKeyRevoked,
     APIKeyUsed,
 )
+from app.domain.events.base import DomainEvent
 
 
 @dataclass
@@ -19,20 +19,20 @@ class APIKeyAggregate:
     """Manages API keys for an agent using event sourcing."""
 
     agent_id: str
-    keys: List["APIKey"] = field(default_factory=list)
+    keys: list[APIKey] = field(default_factory=list)
     version: int = 0
-    _changes: List[DomainEvent] = field(default_factory=list, repr=False)
+    _changes: list[DomainEvent] = field(default_factory=list, repr=False)
 
-    def create(self, key_id: str, key_hash: str, expires_in_days: int = 90) -> "APIKeyAggregate":
+    def create(self, key_id: str, key_hash: str, expires_in_days: int = 90) -> APIKeyAggregate:
         """Creates a new API key for this agent."""
-        expires_at = datetime.now(timezone.utc) + timedelta(days=expires_in_days)
+        expires_at = datetime.now(UTC) + timedelta(days=expires_in_days)
         event = APIKeyCreated(
             aggregate_id=self.agent_id,
             data={
                 "key_id": key_id,
                 "key_hash": key_hash,
                 "expires_at": expires_at.isoformat(),
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             },
         )
         self._apply(event)
@@ -46,7 +46,7 @@ class APIKeyAggregate:
             data={
                 "key_id": key_id,
                 "reason": reason,
-                "revoked_at": datetime.now(timezone.utc).isoformat(),
+                "revoked_at": datetime.now(UTC).isoformat(),
             },
         )
         self._apply(event)
@@ -60,8 +60,8 @@ class APIKeyAggregate:
             data={
                 "key_id": new_key_id,
                 "key_hash": new_key_hash,
-                "expires_at": (datetime.now(timezone.utc) + timedelta(days=expires_in_days)).isoformat(),
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "expires_at": (datetime.now(UTC) + timedelta(days=expires_in_days)).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             },
         )
         self._apply(event)
@@ -69,7 +69,7 @@ class APIKeyAggregate:
 
     def expire_keys(self) -> None:
         """Mark all expired keys as expired (called by scheduled job)."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for key in self.keys:
             if key.expires_at < now and not key.revoked and not key.expired:
                 event = APIKeyExpired(
@@ -85,7 +85,7 @@ class APIKeyAggregate:
             aggregate_id=self.agent_id,
             data={
                 "key_id": key_id,
-                "used_at": datetime.now(timezone.utc).isoformat(),
+                "used_at": datetime.now(UTC).isoformat(),
                 "ip_address": ip_address or "unknown",
             },
         )
@@ -122,7 +122,7 @@ class APIKeyAggregate:
                     break
         self.version += 1
 
-    def get_changes(self) -> List[DomainEvent]:
+    def get_changes(self) -> list[DomainEvent]:
         """Return pending events and clear."""
         changes = self._changes.copy()
         self._changes.clear()
@@ -130,15 +130,15 @@ class APIKeyAggregate:
 
     def is_valid(self, key_hash: str) -> bool:
         """Check if a given key hash is valid (exists, not revoked, not expired)."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for key in self.keys:
             if key.key_hash == key_hash and not key.revoked and not key.expired and key.expires_at > now:
                 return True
         return False
 
-    def active_keys(self) -> List["APIKey"]:
+    def active_keys(self) -> list[APIKey]:
         """Return non-revoked, non-expired keys."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return [k for k in self.keys if not k.revoked and not k.expired and k.expires_at > now]
 
 

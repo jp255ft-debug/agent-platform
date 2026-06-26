@@ -7,10 +7,10 @@ Contract ABI aligned with: contracts/src/AgentDelegation.sol
 """
 from web3 import Web3
 from web3.contract import Contract
-from app.core.config import settings
-from app.infrastructure.blockchain.web3_client import Web3Client
-from app.core.exceptions import ContractNotConfiguredError
 
+from app.core.config import settings
+from app.core.exceptions import ContractNotConfiguredError
+from app.infrastructure.blockchain.web3_client import Web3Client
 
 # ABI aligned with AgentDelegation.sol (EIP-7702 + Budget Cap)
 # Functions: delegate(), delegateBySig(), revoke(), revokeBySig(),

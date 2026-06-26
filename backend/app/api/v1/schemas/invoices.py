@@ -1,6 +1,6 @@
 """Invoice schemas."""
+
 from pydantic import BaseModel
-from typing import List
 
 
 class InvoiceResponse(BaseModel):
@@ -16,5 +16,5 @@ class InvoiceResponse(BaseModel):
 
 
 class InvoiceListResponse(BaseModel):
-    invoices: List[InvoiceResponse]
+    invoices: list[InvoiceResponse]
     total: int

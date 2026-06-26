@@ -1,12 +1,13 @@
 """Application configuration."""
+
 from pydantic_settings import BaseSettings
-from typing import List
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Agent Platform"
     VERSION: str = "0.1.0"
     APP_DEBUG: bool = False
-    ALLOWED_ORIGINS: List[str] = ["*"]
+    ALLOWED_ORIGINS: list[str] = ["*"]
     DATABASE_URL: str = "postgresql+asyncpg://user:pass@postgres:5432/agent_platform"
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 10

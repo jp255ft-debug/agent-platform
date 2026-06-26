@@ -1,8 +1,9 @@
 """Initialize database schema."""
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine
-from app.core.config import settings
 
+from sqlalchemy.ext.asyncio import create_async_engine
+
+from app.core.config import settings
 
 INIT_SCHEMA_SQL = """
 -- Event store table

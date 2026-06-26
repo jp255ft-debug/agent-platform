@@ -1,20 +1,28 @@
 """GPU leasing REST endpoints."""
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Optional
 
 from app.api.v1.schemas.gpu import (
-    GPULeaseRequest, GPULeaseResponse, GPUHardwareResponse,
-    ExtendLeaseRequest, ExtendLeaseResponse, GPUSpecsResponse,
+    ExtendLeaseRequest,
+    ExtendLeaseResponse,
+    GPUHardwareResponse,
+    GPULeaseRequest,
+    GPULeaseResponse,
 )
-from app.application.commands.lease_gpu import LeaseGPUCommand, ExtendLeaseCommand, TerminateLeaseCommand
+from app.application.commands.lease_gpu import (
+    ExtendLeaseCommand,
+    LeaseGPUCommand,
+    TerminateLeaseCommand,
+)
 from app.application.handlers.gpu_handlers import GPUHandlers
-from app.core.dependencies import get_gpu_handlers
 from app.core.auth import validate_api_key
+from app.core.dependencies import get_gpu_handlers
 
 router = APIRouter(prefix="/api/v1/gpu", tags=["GPU Leasing"])
 
 
-@router.get("/hardware", response_model=List[GPUHardwareResponse])
+@router.get("/hardware", response_model=list[GPUHardwareResponse])
 async def list_gpu_hardware(
     search: Optional[str] = None,
     min_vram: Optional[int] = None,

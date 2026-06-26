@@ -2,21 +2,23 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import settings
-from app.core.logging import setup_logging
-from app.core.dependencies import engine
-from app.api.v1.endpoints import agents, api_keys, consume, gpu, invoices, health, pix
-from app.infrastructure.depin.ionet_webhook import router as ionet_webhook_router
+
+from app.api.v1.endpoints import agents, api_keys, consume, gpu, health, invoices, pix
 from app.api.v1.middleware import RateLimitMiddleware
 from app.api.v1.middleware.error_handler import add_error_handlers
 from app.api.v1.middleware.security import (
-    SecurityHeadersMiddleware,
     CorrelationIdMiddleware,
     RequestLoggingMiddleware,
+    SecurityHeadersMiddleware,
 )
 from app.api.websocket.event_handler import WebSocketEventHandler
+from app.core.config import settings
+from app.core.dependencies import engine
+from app.core.logging import setup_logging
+from app.infrastructure.depin.ionet_webhook import router as ionet_webhook_router
 from app.infrastructure.messaging.kafka_producer import KafkaEventProducer
 
 # Setup logging

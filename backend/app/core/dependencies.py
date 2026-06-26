@@ -1,8 +1,10 @@
 """FastAPI dependencies."""
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+
 from fastapi import Depends
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from app.core.config import settings
 
 engine = create_async_engine(settings.DATABASE_URL,
@@ -36,10 +38,10 @@ async def get_redis() -> AsyncGenerator[Redis, None]:
 
 # ─── GPU / io.net Dependencies ────────────────────────────────────────────────
 
+from app.application.handlers.gpu_handlers import GPUHandlers
+from app.infrastructure.db.repositories.event_store import PostgresEventStore
 from app.infrastructure.depin.ionet_client import IonetClient
 from app.infrastructure.depin.ionet_simulator import IonetSimulator
-from app.infrastructure.db.repositories.event_store import PostgresEventStore
-from app.application.handlers.gpu_handlers import GPUHandlers
 
 # Singleton: IonetSimulator mantém deployments em memória entre requisições
 _simulator_instance: IonetSimulator | None = None

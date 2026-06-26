@@ -1,9 +1,10 @@
 """Rate limiting middleware for FastAPI."""
 import logging
-from fastapi import Request, HTTPException, status
+
+from fastapi import HTTPException, Request, status
+from redis.asyncio import Redis
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
-from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 

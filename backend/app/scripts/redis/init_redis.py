@@ -1,7 +1,8 @@
 """Initialize Redis with default configuration."""
 import asyncio
-from redis.asyncio import Redis
+
 from app.core.config import settings
+from redis.asyncio import Redis
 
 
 async def init_redis() -> None:

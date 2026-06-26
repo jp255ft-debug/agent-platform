@@ -14,7 +14,7 @@ Usage:
     upcasted = EventUpcaster.upcast(raw_payload)
     # upcasted["event_type"] == "ResourceConsumedV2"
 """
-from typing import Any, Dict
+from typing import Any
 
 
 class EventUpcaster:
@@ -34,7 +34,7 @@ class EventUpcaster:
     """
 
     @staticmethod
-    def upcast(raw_event: Dict[str, Any]) -> Dict[str, Any]:
+    def upcast(raw_event: dict[str, Any]) -> dict[str, Any]:
         """Apply all upcast steps to bring an event to the latest version.
 
         Args:

@@ -1,7 +1,10 @@
 """Kafka event consumer for processing domain events."""
 import json
-from typing import Callable, Coroutine, Optional
+from collections.abc import Callable, Coroutine
+from typing import Optional
+
 from aiokafka import AIOKafkaConsumer
+
 from app.core.config import settings
 from app.domain.events.base import DomainEvent
 

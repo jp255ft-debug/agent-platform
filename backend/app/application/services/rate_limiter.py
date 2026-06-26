@@ -1,5 +1,6 @@
 from redis.asyncio import Redis
 
+
 class RateLimiter:
     def __init__(self, redis: Redis):
         self._redis = redis

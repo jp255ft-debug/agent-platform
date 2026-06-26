@@ -1,4 +1,5 @@
-import urllib.request, json
+import json
+import urllib.request
 
 # Create API Key
 body = json.dumps({"expires_in_days": 90}).encode()

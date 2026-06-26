@@ -2,14 +2,23 @@
 
 Handles both legacy (V1) and DePIN (V2) events for backward compatibility.
 """
+from app.domain.events.agent_events import AgentDelegated, AgentRegistered, AgentReputationUpdated
 from app.domain.events.base import DomainEvent
-from app.domain.events.agent_events import AgentRegistered, AgentDelegated, AgentReputationUpdated
-from app.domain.events.billing_events import ResourceConsumed, ResourceConsumedV2, BillingSessionSettled
-from app.domain.events.payment_events import PaymentVerified, InvoiceGenerated, InvoicePaid
+from app.domain.events.billing_events import (
+    BillingSessionSettled,
+    ResourceConsumed,
+    ResourceConsumedV2,
+)
+from app.domain.events.payment_events import InvoiceGenerated, InvoicePaid, PaymentVerified
 from app.domain.events.provider_events import (
-    ProviderRegistered, ProviderStatusChanged, HealthReported,
-    SlashingApplied, ProviderStaked, ProviderUnstaked,
-    GPUSpecsUpdated, ProviderJobCompleted,
+    GPUSpecsUpdated,
+    HealthReported,
+    ProviderJobCompleted,
+    ProviderRegistered,
+    ProviderStaked,
+    ProviderStatusChanged,
+    ProviderUnstaked,
+    SlashingApplied,
 )
 
 
