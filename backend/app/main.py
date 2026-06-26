@@ -37,9 +37,8 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Agent Platform API...")
 
     # Initialize Redis
-    global redis_client
     from redis.asyncio import Redis
-    redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
+    redis_client: Redis = Redis.from_url(settings.REDIS_URL, decode_responses=True)
     logger.info("Redis connection established")
 
     # Initialize Kafka producer

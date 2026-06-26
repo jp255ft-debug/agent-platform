@@ -180,7 +180,7 @@ class IonetSimulator:
     Útil para testar o fluxo completo de GPU leasing sem credenciais reais.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._deployments: dict[str, dict] = {}
 
     # ─── VMaaS — GPU Cluster Management ──────────────────────────────────────

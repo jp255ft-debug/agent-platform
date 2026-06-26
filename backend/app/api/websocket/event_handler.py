@@ -8,7 +8,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 class ConnectionManager:
     """Manages WebSocket connections."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._connections: set[WebSocket] = set()
 
     async def connect(self, websocket: WebSocket) -> None:

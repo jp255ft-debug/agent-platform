@@ -2,7 +2,7 @@
 import json
 from collections.abc import Callable, Coroutine
 
-from aiokafka import AIOKafkaConsumer
+from aiokafka import AIOKafkaConsumer  # type: ignore[import-untyped]
 
 from app.core.config import settings
 from app.domain.events.base import DomainEvent
@@ -57,7 +57,7 @@ class KafkaEventConsumer:
                 data=event_data.get("data", {}),
             )
             event.event_id = event_data.get("event_id", "")
-            event.event_type = lambda: event_type
+            event.event_type = lambda et=event_type: et  # type: ignore[method-assign,misc]
 
             for handler in handlers:
                 await handler(event)

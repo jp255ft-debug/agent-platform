@@ -58,8 +58,8 @@ class EventHandlers:
             ProviderJobCompleted: self._on_provider_job_completed,
         }
         handler = handlers.get(type(event))
-        if handler:
-            await handler(event)
+        if handler is not None:
+            await handler(event)  # type: ignore[operator]
 
     # =========================================================================
     # Agent Event Handlers

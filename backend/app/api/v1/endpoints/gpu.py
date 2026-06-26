@@ -55,7 +55,7 @@ async def request_gpu_lease(
     asynchronously. Status can be queried via GET /leases/{lease_id}.
     """
     command = LeaseGPUCommand(
-        agent_id=agent_id,
+        agent_id=agent_id or "",
         hardware_id=request.hardware_id,
         duration_hours=request.duration_hours,
         gpu_count=request.gpu_count or 1,
@@ -76,7 +76,7 @@ async def get_lease_status(
 ):
     """Get the status of a GPU lease."""
     try:
-        return await handlers.get_lease(lease_id, agent_id)
+        return await handlers.get_lease(lease_id, agent_id or "")
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND if "not found" in str(e) else status.HTTP_403_FORBIDDEN,
@@ -95,7 +95,7 @@ async def extend_lease(
     command = ExtendLeaseCommand(
         lease_id=lease_id,
         additional_hours=request.additional_hours,
-        agent_id=agent_id,
+        agent_id=agent_id or "",
     )
     try:
         return await handlers.extend_lease(command)
@@ -113,7 +113,7 @@ async def terminate_lease(
     agent_id: str | None = Depends(validate_api_key),
 ):
     """Terminate a GPU lease early (kill-switch)."""
-    command = TerminateLeaseCommand(lease_id=lease_id, agent_id=agent_id)
+    command = TerminateLeaseCommand(lease_id=lease_id, agent_id=agent_id or "")
     try:
         await handlers.terminate_lease(command)
     except ValueError as e:

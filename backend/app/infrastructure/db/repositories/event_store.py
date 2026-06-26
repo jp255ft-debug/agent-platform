@@ -200,7 +200,7 @@ class PostgresEventStore(EventStore):
         if event_cls is None:
             raise ValueError(f"Unknown event type after upcast: {upcasted['event_type']}")
 
-        event = event_cls.__new__(event_cls)
+        event: DomainEvent = event_cls.__new__(event_cls)  # type: ignore[call-overload]
         event.event_id = upcasted["event_id"]
         event.aggregate_id = upcasted["aggregate_id"]
         event.occurred_at = (

@@ -460,16 +460,18 @@ class ProviderAggregate:
     def _apply(self, event: DomainEvent) -> None:
         """Reconstrói o estado do agregado a partir de um evento."""
         if isinstance(event, ProviderRegistered):
-            self.owner_address = event.data.get("owner_address")
+            owner_addr: str | None = event.data.get("owner_address")
+            if owner_addr is not None:
+                self.owner_address = owner_addr
             specs_data = event.data.get("gpu_specs", {})
             if specs_data:
                 self.gpu_specs = GPUSpecs.from_dict(specs_data)
-            self.registered_at = datetime.fromisoformat(
-                event.data.get("registered_at", datetime.now(UTC).isoformat())
-            )
+            registered_at_str: str = event.data.get("registered_at", datetime.now(UTC).isoformat())
+            self.registered_at = datetime.fromisoformat(registered_at_str)
 
         elif isinstance(event, ProviderStatusChanged):
-            self.status = ProviderStatus(event.data.get("new_status", self.status.value))
+            new_status: str = event.data.get("new_status", self.status.value)
+            self.status = ProviderStatus(new_status)
 
         elif isinstance(event, HealthReported):
             self.total_uptime_seconds = event.data.get(

@@ -168,7 +168,7 @@ class AnalyticsQueries:
 
     @staticmethod
     def top_agents_by_consumption(
-        resource_type: str = None,
+        resource_type: str | None = None,
         days: int = 7,
         limit: int = 20,
     ) -> str:

@@ -1,3 +1,5 @@
+from typing import Any
+
 from redis.asyncio import Redis
 
 
@@ -8,12 +10,13 @@ class RateLimiter:
     async def check_rate_limit(self, agent_id: str, resource_type: str,
         max_tokens: int = 100, refill_rate: float = 10.0) -> bool:
         key = f"rate_limit:{agent_id}:{resource_type}"
-        return await self._redis.eval(self._token_bucket_script, 1, key, max_tokens, refill_rate)
+        result: Any = await self._redis.eval(self._token_bucket_script, 1, [key], [str(max_tokens)], [str(refill_rate)])  # type: ignore[misc]
+        return bool(result)
 
     async def get_remaining_tokens(self, agent_id: str, resource_type: str) -> int:
         key = f"rate_limit:{agent_id}:{resource_type}"
-        result = await self._redis.hgetall(key)
-        return int(result.get("tokens", 0))
+        result: Any = await self._redis.hgetall(key)  # type: ignore[misc]
+        return int(result.get(b"tokens", 0))
 
     _token_bucket_script = """
 local key = KEYS[1]

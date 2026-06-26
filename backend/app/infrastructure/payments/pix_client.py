@@ -49,9 +49,9 @@ class PixClient:
             environment: "sandbox" or "production". Defaults to STARK_BANK_ENVIRONMENT.
             webhook_url: URL for Pix webhook callbacks.
         """
-        self._api_key = api_key or getattr(settings, "STARK_BANK_API_KEY", "")
-        self._environment = environment or getattr(settings, "STARK_BANK_ENVIRONMENT", "sandbox")
-        self._webhook_url = webhook_url or getattr(settings, "STARK_BANK_WEBHOOK_URL", "")
+        self._api_key: str = api_key or str(getattr(settings, "STARK_BANK_API_KEY", ""))
+        self._environment: str = environment or str(getattr(settings, "STARK_BANK_ENVIRONMENT", "sandbox"))
+        self._webhook_url: str = webhook_url or str(getattr(settings, "STARK_BANK_WEBHOOK_URL", ""))
 
         base_url = self.BASE_URLS.get(self._environment)
         if not base_url:
@@ -203,21 +203,21 @@ class PixClient:
         Raises:
             PixClientError: On API failure.
         """
-        params = {"limit": min(limit, 100)}
+        params: dict[str, str | int] = {"limit": min(limit, 100)}
 
-        if after:
+        if after is not None:
             params["after"] = after
-        if before:
+        if before is not None:
             params["before"] = before
-        if status:
+        if status is not None:
             params["status"] = status
 
         try:
-            response = await self._client.get("/dynamic-brcode", params=params)
+            response = await self._client.get("/dynamic-brcode", params=params)  # type: ignore[arg-type]
             response.raise_for_status()
             data = response.json()
 
-            transactions = []
+            transactions: list[dict[str, object]] = []
             for item in data.get("brcodes", []):
                 transactions.append({
                     "id": item.get("id"),

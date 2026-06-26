@@ -1,6 +1,7 @@
 """Initialize database schema."""
 import asyncio
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import settings
@@ -69,7 +70,7 @@ async def init_database() -> None:
         for statement in INIT_SCHEMA_SQL.split(";"):
             statement = statement.strip()
             if statement:
-                await conn.execute(statement)
+                await conn.execute(text(statement))
     await engine.dispose()
     print("Database schema initialized successfully.")
 

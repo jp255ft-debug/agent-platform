@@ -1,6 +1,5 @@
 """Web3 client for blockchain interactions."""
 from web3 import Web3
-from web3.middleware import geth_poa_middleware
 
 from app.core.config import settings
 
@@ -10,7 +9,12 @@ class Web3Client:
 
     def __init__(self):
         self._w3 = Web3(Web3.HTTPProvider(settings.RPC_URL_BASE))
-        self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        # geth_poa_middleware is injected conditionally for PoA chains
+        try:
+            from web3.middleware import geth_poa_middleware  # type: ignore[attr-defined]
+            self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        except ImportError:
+            pass
 
     @property
     def w3(self) -> Web3:

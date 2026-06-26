@@ -96,7 +96,7 @@ class IonetClient:
             "duration": duration_hours,
             "currency": currency,
         }
-        response = await self._client.get("/vmaas/price", params=params)
+        response = await self._client.get("/vmaas/price", params=params)  # type: ignore[arg-type]
         response.raise_for_status()
         return PriceResponse(**response.json()["data"])
 

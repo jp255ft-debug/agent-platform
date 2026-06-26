@@ -97,12 +97,12 @@ async def validate_api_key(
         )
 
     # Verify the plain key against stored hash
-    if not verify_api_key(plain_key, stored_hash):
+    if stored_hash is None or not verify_api_key(plain_key, stored_hash):
         raise AuthenticationError(message="Invalid API key")
 
     # Load aggregate to check key validity (non-expired, non-revoked)
     aggregate = await repo.load_agent_keys(agent_id)
-    if not aggregate.is_valid(stored_hash):
+    if stored_hash is None or not aggregate.is_valid(stored_hash):
         raise AuthenticationError(
             message="API key revoked or expired",
             details={"agent_id": agent_id},

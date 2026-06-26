@@ -2,7 +2,7 @@
 import json
 import logging
 
-from aiokafka import AIOKafkaProducer
+from aiokafka import AIOKafkaProducer  # type: ignore[import-untyped]
 
 from app.core.config import settings
 from app.domain.events.base import DomainEvent
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class KafkaEventProducer:
     """Publishes domain events to Kafka topics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._producer: AIOKafkaProducer | None = None
 
     async def start(self) -> None:

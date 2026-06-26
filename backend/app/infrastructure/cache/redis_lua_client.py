@@ -13,7 +13,7 @@ Usage:
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from redis.asyncio import Redis
 
@@ -73,7 +73,8 @@ class RedisLuaClient:
             raise RuntimeError("reserve_quota script not loaded")
 
         key = f"quota:{agent_id}:{resource_type}"
-        return await self._redis.evalsha(sha, 1, key, str(amount), str(ttl))
+        result: Any = await self._redis.evalsha(sha, 1, [key], [str(amount)], [str(ttl)])  # type: ignore[misc]
+        return int(result) if result is not None else 0
 
     async def check_rate_limit(
         self,
@@ -103,8 +104,8 @@ class RedisLuaClient:
 
         key = f"rate_limit:{agent_id}:{resource_type}"
         now = int(time.time())
-        result = await self._redis.evalsha(
-            sha, 1, key, str(max_tokens), str(refill_rate), str(now), str(cost)
+        result: Any = await self._redis.evalsha(  # type: ignore[misc]
+            sha, 1, [key], [str(max_tokens)], [str(refill_rate)], [str(now)], [str(cost)]
         )
         return result == 1
 
@@ -127,7 +128,7 @@ class RedisLuaClient:
             raise RuntimeError("idempotency_check script not loaded")
 
         key = f"idempotency:{idempotency_key}"
-        result = await self._redis.evalsha(sha, 1, key, session_id, str(ttl))
+        result: Any = await self._redis.evalsha(sha, 1, [key], [session_id], [str(ttl)])  # type: ignore[misc]
         if result is not None:
             return result.decode("utf-8") if isinstance(result, bytes) else result
         return None

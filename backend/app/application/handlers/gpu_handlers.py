@@ -136,7 +136,8 @@ class GPUHandlers:
             raise ValueError("Agent does not own this lease")
 
         # 3. Extend on io.net
-        await self._ionet.extend_cluster(lease.deployment_id, command.additional_hours)
+        dep_id: str = lease.deployment_id if lease.deployment_id is not None else ""
+        await self._ionet.extend_cluster(dep_id, command.additional_hours)
 
         # 4. Update aggregate
         lease.extend(command.additional_hours)
@@ -150,7 +151,7 @@ class GPUHandlers:
 
         return {
             "lease_id": command.lease_id,
-            "new_expires_at": lease.expires_at.isoformat(),
+            "new_expires_at": lease.expires_at.isoformat() if lease.expires_at is not None else "",
             "new_duration_hours": lease.duration_hours,
         }
 

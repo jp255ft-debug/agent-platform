@@ -36,8 +36,8 @@ async def register_agent(
     """Register a new agent."""
     handlers = _get_command_handlers(db)
     command = RegisterAgentCommand(
-        agent_id=body.agent_id,
-        owner_address=body.owner_address,
+        agent_id=body.agent_id or "",
+        owner_address=body.owner_address or "",
         delegation_address=body.delegation_address,
     )
     try:
@@ -48,8 +48,8 @@ async def register_agent(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.to_dict())
 
     return AgentResponse(
-        agent_id=body.agent_id,
-        owner_address=body.owner_address,
+        agent_id=body.agent_id or "",
+        owner_address=body.owner_address or "",
         delegation_address=body.delegation_address,
     )
 
@@ -86,7 +86,7 @@ async def list_agents(
                 agents.append(AgentResponse(
                     agent_id=agent.agent_id,
                     owner_address=agent.owner_address or "",
-                    delegation_address=agent.delegation_address,
+                    delegation_address=agent.delegation_address or "",
                     delegation_active=agent.delegation_active,
                     reputation_score=agent.reputation_score,
                     version=agent.version,

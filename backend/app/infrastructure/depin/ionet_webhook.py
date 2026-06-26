@@ -146,5 +146,5 @@ async def handle_deployment_event(
     return {
         "status": "processed",
         "lease_id": lease_id,
-        "new_status": lease.status.value,
+        "new_status": lease.status.value if hasattr(lease.status, 'value') else lease.status,
     }

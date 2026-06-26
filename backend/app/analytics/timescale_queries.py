@@ -155,7 +155,7 @@ class TimescaleQueries:
 
     @staticmethod
     def resource_usage_timeseries(
-        resource_type: str = None,
+        resource_type: str | None = None,
         hours: int = 24,
         bucket: str = "5 minutes",
     ) -> str:
