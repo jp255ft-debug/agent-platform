@@ -202,3 +202,33 @@ contract MeuContrato is Ownable, ReentrancyGuard {
 6. **Documentar decisões**: Se uma escolha de implementação não é óbvia, comentar o motivo
 7. **Verificar após alterar**: Executar `validate_python.py` ou `validate_solidity.py` após cada alteração significativa
 8. **Nunca deixar código comentado**: Remover código morto, não comentar
+
+---
+
+## 🛡️ Arquivos Read-Only Durante ACT MODE
+
+Os seguintes arquivos NÃO podem ser alterados como "efeito colateral" de tentar fazer um teste passar. 
+Se a correção de um teste exigir modificação nestes arquivos, o agente DEVE:
+1. Propor a mudança explicitamente
+2. Explicar por que é necessária
+3. Aguardar autorização do usuário
+
+### 🔒 Read-Only List:
+
+**Infraestrutura de Teste:**
+- `backend/tests/conftest.py` — Fixtures globais (mock do web3)
+- `backend/tests/integration/conftest.py` — Fixtures compartilhadas de integração (MockAsyncSession, MockRedis, MockEventStore)
+
+**Configuração de Infraestrutura:**
+- `backend/app/infrastructure/cache/lua_scripts/*.lua` — Scripts Lua do Redis (atômicos, validados)
+- `.env` / `.env.example` — Configurações de ambiente
+
+**Configuração de CI/Ferramentas:**
+- `.github/workflows/ci.yml` — Pipeline de CI
+- `.pre-commit-config.yaml` — Hook configurações
+- `backend/pyproject.toml` (seção `[tool.mypy]`, `[tool.ruff]`, `[tool.pytest]`) — Ferramentas de qualidade
+
+### 📋 Procedimento para alteração de Read-Only File:
+1. Identificar que o arquivo precisa ser alterado
+2. Escrever: "⚠️ **Proposta de alteração em Read-Only File:** `{caminho}` — motivo: {explicação}"
+3. Aguardar resposta do usuário antes de modificar

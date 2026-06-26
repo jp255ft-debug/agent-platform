@@ -2,7 +2,7 @@
 import json
 import logging
 
-from aiokafka import AIOKafkaProducer  # type: ignore[import-untyped]
+from aiokafka import AIOKafkaProducer
 
 from app.core.config import settings
 from app.domain.events.base import DomainEvent

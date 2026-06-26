@@ -213,7 +213,7 @@ class PixClient:
             params["status"] = status
 
         try:
-            response = await self._client.get("/dynamic-brcode", params=params)  # type: ignore[arg-type]
+            response = await self._client.get("/dynamic-brcode", params=params)
             response.raise_for_status()
             data = response.json()
 

@@ -77,5 +77,5 @@ def add_error_handlers(app: FastAPI) -> None:
         app: A instância do FastAPI application.
     """
     app.add_exception_handler(AgentPlatformError, agent_platform_error_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(Exception, unhandled_error_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(Exception, unhandled_error_handler)
     logger.info("Error handlers registered: AgentPlatformError -> JSON, Exception -> 500")

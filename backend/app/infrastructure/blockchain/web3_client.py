@@ -11,7 +11,7 @@ class Web3Client:
         self._w3 = Web3(Web3.HTTPProvider(settings.RPC_URL_BASE))
         # geth_poa_middleware is injected conditionally for PoA chains
         try:
-            from web3.middleware import geth_poa_middleware  # type: ignore[attr-defined]
+            from web3.middleware import geth_poa_middleware
             self._w3.middleware_onion.inject(geth_poa_middleware, layer=0)
         except ImportError:
             pass

@@ -2,7 +2,7 @@
 import json
 from collections.abc import Callable, Coroutine
 
-from aiokafka import AIOKafkaConsumer  # type: ignore[import-untyped]
+from aiokafka import AIOKafkaConsumer
 
 from app.core.config import settings
 from app.domain.events.base import DomainEvent
