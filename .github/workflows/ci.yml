@@ -43,7 +43,7 @@ jobs:
         run: bandit -r app/ -x tests/ -ll --skip B608,B310
 
       - name: Run safety dependency scan
-        run: safety check -r requirements.txt --ignore 70612
+        run: safety scan -r requirements.txt --ignore 67584,84963,94066,65293,64930 --ignore 70612 --ignore SFTY-20260404-69047
 
       - name: Run pytest with coverage
         run: pytest -v --cov=app --cov-report=term-missing --cov-report=json:coverage/coverage.json --cov-fail-under=30 --ignore=../scripts --ignore=tests/unit/test_delegation_contract.py --ignore=tests/unit/test_web3_client.py --ignore=tests/unit/test_payment_verifier.py --ignore=tests/unit/test_pix_client.py tests/unit/

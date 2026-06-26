@@ -5,7 +5,7 @@
 # =============================================================================
 
 # ─── Runtime ───────────────────────────────────────────────────────────────────
-fastapi==0.104.1
+fastapi>=0.109.1,<1.0.0
 uvicorn[standard]==0.24.0
 sqlalchemy[asyncio]==2.0.23
 asyncpg==0.29.0
@@ -15,11 +15,11 @@ aiokafka==0.10.0
 web3==6.11.1
 pydantic==2.5.2
 pydantic-settings==2.1.0
-python-dotenv==1.0.0
+python-dotenv>=1.2.2,<2.0.0
 httpx==0.25.2
 tenacity==8.2.3
 bcrypt==4.1.2
 prometheus-client==0.19.0
-orjson==3.9.10
+orjson>=3.9.15,<4.0.0
 
 # ─── Dev (see dev-requirements.txt) ─────────────────────────────────────────────
