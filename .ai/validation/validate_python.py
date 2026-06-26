@@ -24,7 +24,7 @@ DEFAULT_PATH = BASE_DIR / "backend" / "app"
 OPTIONAL_MODULES = {
     "web3", "eth_account", "kafka", "redis", "sqlalchemy",
     "alembic", "fastapi", "pydantic", "uvicorn",
-    "aiokafka", "bcrypt", "httpx",
+    "aiokafka", "bcrypt", "httpx", "tenacity",
 }
 
 # Prefixos de modulos internos do projeto (pular verificacao)

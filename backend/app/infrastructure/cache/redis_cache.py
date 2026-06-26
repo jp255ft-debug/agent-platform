@@ -1,6 +1,7 @@
 """Redis cache implementation."""
 import json
-from typing import Any, Optional
+from typing import Any
+
 from redis.asyncio import Redis
 
 
@@ -14,7 +15,7 @@ class RedisCache:
     def _key(self, key: str) -> str:
         return f"{self._prefix}:{key}"
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         data = await self._redis.get(self._key(key))
         if data:
             return json.loads(data)
