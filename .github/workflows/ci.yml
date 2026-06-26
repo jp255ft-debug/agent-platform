@@ -30,6 +30,7 @@ jobs:
           pip install -r requirements.txt
           pip install -r dev-requirements.txt || pip install pytest pytest-asyncio pytest-cov
           pip install safety
+          pip install "eth-typing>=4.0.0,<5.0.0"
           python -c "import pytest; print(f'pytest version: {pytest.__version__}')"
           which pytest || echo "pytest not in PATH, using python -m pytest"
 
