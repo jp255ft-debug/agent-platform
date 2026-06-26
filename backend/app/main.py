@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
     try:
         await asyncio.wait_for(kafka_producer.stop(), timeout=10.0)
         logger.info("Kafka producer stopped")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("Kafka producer stop timed out after 10s")
     except Exception as e:
         logger.warning("Kafka producer stop error: %s", e)
