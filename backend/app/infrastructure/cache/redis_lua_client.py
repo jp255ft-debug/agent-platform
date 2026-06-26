@@ -13,7 +13,7 @@ Usage:
 
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from redis.asyncio import Redis
 
@@ -111,7 +111,7 @@ class RedisLuaClient:
 
     async def check_idempotency(
         self, idempotency_key: str, session_id: str, ttl: int = 86400
-    ) -> Optional[str]:
+    ) -> str | None:
         """Atomically check and set an idempotency key.
 
         Args:
@@ -135,7 +135,7 @@ class RedisLuaClient:
 
     async def get_quota_remaining(
         self, agent_id: str, resource_type: str
-    ) -> Optional[int]:
+    ) -> int | None:
         """Get remaining quota for an agent and resource type.
 
         Args:
