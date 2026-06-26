@@ -1,4 +1,17 @@
-# API Conventions — Knowledge Base
+# API Conventions — Knowledge Base (DePIN Procurement Focus)
+
+## Convenções de Negócio M2M (DePIN Focus)
+
+A plataforma foi reorientada para **Infraestrutura M2M para Alocação de Recursos DePIN**.
+A semântica dos domínios foi atualizada:
+
+| Termo Legado | Novo Termo (DePIN) | Descrição |
+|-------------|-------------------|-----------|
+| `Resource` | `GPU_COMPUTE_TFLOPS` | Unidades de Computação GPU (TFLOPS/hora, VRAM alocada ou Context-Tokens) |
+| `Provider` | `DePIN Node` | Nós ou agregadores da rede DePIN (ex: io.net, Render, Akash) |
+| `Consumer` | `Autonomous Agent` | Agente autônomo operando sob delegação gasless EIP-7702 |
+| `BillingSession` | `GPU Lease Session` | Sessão de aluguel de hardware entre agente e nó DePIN |
+| `Payment` | `State Channel Proof` | Prova criptográfica de canal de estado para liquidação off-chain |
 
 ## OpenAPI 3.0 Standards
 
@@ -12,14 +25,14 @@
 #### Padrão de Nomenclatura
 | Método | Path | Descrição |
 |--------|------|-----------|
-| GET | /api/v1/agents | Listar agentes |
+| GET | /api/v1/agents | Listar agentes autônomos |
 | POST | /api/v1/agents | Criar agente |
 | GET | /api/v1/agents/{id} | Obter agente |
-| POST | /api/v1/agents/{id}/delegate | Delegar agente |
+| POST | /api/v1/agents/{id}/delegate | Delegar agente (EIP-7702 gasless) |
 | POST | /api/v1/agents/{id}/revoke-delegation | Revogar delegação |
 | POST | /api/v1/agents/{id}/reputation | Atualizar reputação |
-| POST | /api/v1/consume | Consumir recurso |
-| GET | /api/v1/consume/sessions/{id} | Obter sessão de billing |
+| POST | /api/v1/consume | Consumir recurso DePIN (GPU) |
+| GET | /api/v1/consume/sessions/{id} | Obter sessão de GPU lease |
 | GET | /api/v1/invoices | Listar faturas |
 | GET | /api/v1/invoices/{id} | Obter fatura |
 | POST | /api/v1/invoices/{id}/settle | Liquidar fatura |
@@ -74,18 +87,34 @@
 ## AsyncAPI 2.0 (Event Streaming)
 
 ### Tópicos Kafka
+
+#### Legado (V1)
 | Tópico | Eventos | Descrição |
 |--------|---------|-----------|
 | agent.registered | AgentRegistered | Novo agente registrado |
 | agent.delegated | AgentDelegated | Delegação de agente |
 | agent.reputation | AgentReputationUpdated | Reputação atualizada |
-| billing.resource.consumed | ResourceConsumed | Recurso consumido |
+| billing.resource.consumed | ResourceConsumed (V1) | Recurso consumido (legado) |
 | billing.session.settled | BillingSessionSettled | Sessão liquidada |
 | billing.invoice.generated | InvoiceGenerated | Fatura gerada |
 | billing.invoice.paid | InvoicePaid | Fatura paga |
 | payment.verified | PaymentVerified | Pagamento verificado |
 
+#### DePIN Procurement (V2)
+| Tópico | Eventos | Descrição |
+|--------|---------|-----------|
+| billing.resource.consumed.v2 | ResourceConsumedV2 | Recurso DePIN consumido com custo e provedor |
+| depin.provider.registered | ProviderRegistered | Novo provedor DePIN registrado |
+| depin.provider.status | ProviderStatusChanged | Status do provedor alterado |
+| depin.provider.health | HealthReported | Telemetria do nó recebida |
+| depin.provider.slashed | SlashingApplied | Penalidade aplicada ao provedor |
+| depin.provider.staked | ProviderStaked | Stake adicionado |
+| depin.provider.unstaked | ProviderUnstaked | Stake removido |
+| depin.provider.gpu_specs | GPUSpecsUpdated | Especificações da GPU atualizadas |
+| depin.provider.job | ProviderJobCompleted | Job de computação concluído |
+
 ### Formato do Evento
+
 ```json
 {
     "event_id": "uuid",

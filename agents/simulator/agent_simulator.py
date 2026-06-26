@@ -24,24 +24,36 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Resource types and their typical costs
+# Resource types and their typical costs (DePIN GPU Procurement)
 RESOURCE_TYPES = {
-    "llm": {"cost_range": (10, 1000), "unit": "tokens"},
-    "stt": {"cost_range": (5, 300), "unit": "seconds"},
-    "tts": {"cost_range": (5, 200), "unit": "seconds"},
-    "image": {"cost_range": (50, 500), "unit": "images"},
-    "embedding": {"cost_range": (1, 50), "unit": "vectors"},
+    "GPU_COMPUTE_TFLOPS": {"cost_range": (10, 1000), "unit": "tflops", "p_gpu": 0.00015},
+    "GPU_VRAM": {"cost_range": (5, 300), "unit": "gb_hour", "p_gpu": 0.00008},
+    "INFERENCE_TOKEN": {"cost_range": (50, 5000), "unit": "tokens", "p_token": 0.000002},
+    "ZK_PROOF": {"cost_range": (100, 2000), "unit": "proofs", "p_gpu": 0.00030},
+    "DEEPSEEK_R1": {"cost_range": (200, 8000), "unit": "reasoning_tokens", "p_token": 0.000005},
 }
 
-# Event types to simulate
+# DePIN provider IDs for realistic simulation
+DEPIN_PROVIDERS = [
+    "io-net",
+    "render-network",
+    "akash-network",
+    "gpu-network",
+    "nosana",
+    "clore-ai",
+]
+
+# Event types to simulate (DePIN Procurement semantics)
 EVENT_TYPES = [
     "AgentRegistered",
     "BillingSessionStarted",
     "ResourceConsumed",
+    "ResourceConsumedV2",  # DePIN V2 with cost_micro_usdc + provider_id
     "BillingSessionCompleted",
     "PaymentVerified",
     "InvoiceGenerated",
 ]
+
 
 
 @dataclass
@@ -122,7 +134,39 @@ class AgentSimulator:
                 "session_id": f"session_{uuid.uuid4().hex[:12]}",
             }
 
+        elif event_type == "ResourceConsumedV2":
+            """DePIN V2 event with cost_micro_usdc and provider_id.
+            
+            Simula a equação de inferência em tempo real:
+            cost = (p_gpu * tflops_used * delta_t) + (p_token * n_tokens)
+            """
+            resource = random.choice(list(RESOURCE_TYPES.keys()))
+            specs = RESOURCE_TYPES[resource]
+            amount = random.randint(*specs["cost_range"])
+            delta_t = random.randint(1, 10)  # seconds
+            p_gpu = specs.get("p_gpu", 0.00015)
+            p_token = specs.get("p_token", 0.000002)
+            n_tokens = random.randint(100, 3000)
+            
+            # Cálculo do custo em micro USDC (1 USDC = 1_000_000 micro USDC)
+            cost_usdc = (p_gpu * amount * delta_t) + (p_token * n_tokens)
+            cost_micro_usdc = int(cost_usdc * 1_000_000)
+            
+            agent.total_consumption += int(cost_usdc)
+            event["data"] = {
+                "resource_type": resource,
+                "amount": amount,
+                "unit": specs["unit"],
+                "cost_micro_usdc": cost_micro_usdc,
+                "cost_usdc": round(cost_usdc, 6),
+                "provider_id": random.choice(DEPIN_PROVIDERS),
+                "session_id": f"session_{uuid.uuid4().hex[:12]}",
+                "delta_t_seconds": delta_t,
+                "tokens_used": n_tokens,
+            }
+
         elif event_type == "BillingSessionCompleted":
+
             if agent.active_sessions > 0:
                 agent.active_sessions -= 1
                 amount = random.randint(100, 5000)

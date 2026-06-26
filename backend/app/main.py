@@ -1,4 +1,5 @@
 """Agent Platform - Main Application."""
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket
@@ -6,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.dependencies import engine
-from app.api.v1.endpoints import agents, api_keys, consume, invoices, health, pix
+from app.api.v1.endpoints import agents, api_keys, consume, gpu, invoices, health, pix
+from app.infrastructure.depin.ionet_webhook import router as ionet_webhook_router
 from app.api.v1.middleware import RateLimitMiddleware
 from app.api.v1.middleware.error_handler import add_error_handlers
 from app.api.v1.middleware.security import (
@@ -52,15 +54,17 @@ async def lifespan(app: FastAPI):
 
     # Close Redis
     if redis_client:
-        await redis_client.close()
+        await redis_client.aclose()
         logger.info("Redis connection closed")
 
-    # Close Kafka
+    # Close Kafka (with timeout to prevent hanging on shutdown)
     try:
-        await kafka_producer.stop()
+        await asyncio.wait_for(kafka_producer.stop(), timeout=10.0)
         logger.info("Kafka producer stopped")
-    except Exception:
-        pass
+    except asyncio.TimeoutError:
+        logger.warning("Kafka producer stop timed out after 10s")
+    except Exception as e:
+        logger.warning("Kafka producer stop error: %s", e)
 
     # Close database engine
     await engine.dispose()
@@ -104,6 +108,12 @@ app.include_router(pix.router, prefix="/api/v1/pix", tags=["pix"])
 
 # API Key management router (requires authentication)
 app.include_router(api_keys.router, tags=["api-keys"])
+
+# GPU Leasing router (io.net DePIN integration)
+app.include_router(gpu.router, tags=["gpu"])
+
+# io.net webhook router (receives async deployment events)
+app.include_router(ionet_webhook_router, tags=["gpu"])
 
 
 @app.websocket("/ws")

@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     TIMESCALEDB_URL: str = "postgresql+asyncpg://user:pass@timescaledb:5432/agent_analytics"
     PROMETHEUS_ENABLED: bool = True
 
+    # ─── io.net DePIN ─────────────────────────────────────────────────────────
+    IO_NET_API_KEY: str = ""
+    IO_NET_AUTH_TOKEN: str = ""
+    IO_NET_WEBHOOK_SECRET: str = ""
+    IO_NET_SIMULATOR: bool = False
+
     # ─── Pix / Stark Bank ────────────────────────────────────────────────────
     STARK_BANK_API_KEY: str = ""
     STARK_BANK_ENVIRONMENT: str = "sandbox"

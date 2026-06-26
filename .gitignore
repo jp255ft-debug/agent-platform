@@ -64,5 +64,15 @@ htmlcov/
 
 # Generated files
 tree_clean2.txt
+tree_clean_final.txt
+tree_clean_final.md
+tree_clean3.txt
+tree_atualizada.txt
+TREE_GUIDE.md
 out/
 cache/
+
+# Temporary/scratch files at root
+2.0.0
+=4.1.0
+-p/

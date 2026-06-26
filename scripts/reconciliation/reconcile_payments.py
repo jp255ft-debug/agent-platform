@@ -115,10 +115,19 @@ class ReconciliationReport:
 
 
 class BlockchainPaymentReader:
-    """Reads PaymentVerified events from the PaymentVerifier contract."""
+    """Reads PaymentVerified events from the PaymentVerifier contract.
+
+    Features:
+    - Chunked block range queries to avoid RPC payload limits
+    - Exponential backoff retry for transient RPC failures
+    - Fail-fast on unrecoverable errors (no silent empty returns)
+    """
 
     # PaymentVerified(address indexed sender, address indexed recipient, uint256 amount, uint256 nonce)
     PAYMENT_VERIFIED_EVENT_SIG = "PaymentVerified(address,address,uint256,uint256)"
+
+    # Maximum blocks per RPC call to avoid "query returned more than 10000 results"
+    CHUNK_SIZE = 2000
 
     def __init__(self, rpc_url: str, contract_address: Optional[str] = None):
         self._w3 = Web3(Web3.HTTPProvider(rpc_url))
@@ -130,29 +139,73 @@ class BlockchainPaymentReader:
         # Build event signature hash
         self._event_topic = Web3.keccak(text=self.PAYMENT_VERIFIED_EVENT_SIG).hex()
 
-    async def get_events(
+    async def _fetch_logs_chunk(
         self, from_block: int, to_block: int
-    ) -> List[OnChainPayment]:
-        """Fetch PaymentVerified events in a block range."""
-        if not self._contract_address:
-            logger.warning("No PaymentVerifier contract address configured")
-            return []
+    ) -> list:
+        """Fetch a single chunk of logs with retry logic.
 
-        try:
-            logs = self._w3.eth.get_logs(
-                {
+        Retries up to 5 times with exponential backoff (2s, 4s, 8s, 16s, 30s)
+        for transient errors. Raises on unrecoverable failures.
+        """
+        import time
+
+        last_exception = None
+        for attempt in range(5):
+            try:
+                return self._w3.eth.get_logs({
                     "address": self._contract_address,
                     "fromBlock": from_block,
                     "toBlock": to_block,
                     "topics": [self._event_topic],
-                }
-            )
-        except Exception as e:
-            logger.error(f"Failed to fetch logs: {e}")
+                })
+            except Exception as e:
+                last_exception = e
+                if attempt < 4:
+                    wait = min(2 ** (attempt + 1), 30)
+                    logger.warning(
+                        "RPC call failed (attempt %d/5) blocks %s-%s: %s. "
+                        "Retrying in %ds...",
+                        attempt + 1, from_block, to_block, e, wait,
+                    )
+                    time.sleep(wait)
+                else:
+                    logger.critical(
+                        "RPC call failed after 5 attempts blocks %s-%s: %s",
+                        from_block, to_block, e,
+                    )
+
+        raise last_exception  # Re-raise after all retries exhausted
+
+    async def get_events(
+        self, from_block: int, to_block: int
+    ) -> List[OnChainPayment]:
+        """Fetch PaymentVerified events in a block range with chunking and retry.
+
+        Divides the block range into chunks of CHUNK_SIZE blocks to avoid
+        RPC payload limits. Each chunk is fetched with exponential backoff retry.
+        Fail-fast: if any chunk fails after retries, the entire operation fails.
+        """
+        if not self._contract_address:
+            logger.warning("No PaymentVerifier contract address configured")
             return []
 
+        all_logs = []
+        current = from_block
+
+        while current <= to_block:
+            end = min(to_block, current + self.CHUNK_SIZE - 1)
+            logs = await self._fetch_logs_chunk(current, end)
+            all_logs.extend(logs)
+            current = end + 1
+
+        logger.info(
+            "Fetched %d log entries from blocks %s-%s (in %d chunks)",
+            len(all_logs), from_block, to_block,
+            (to_block - from_block) // self.CHUNK_SIZE + 1,
+        )
+
         payments = []
-        for log in logs:
+        for log in all_logs:
             try:
                 # Decode event data
                 # topics[1] = indexed sender, topics[2] = indexed recipient

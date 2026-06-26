@@ -1,9 +1,12 @@
 """Kafka event producer for publishing domain events."""
 import json
+import logging
 from typing import Optional
 from aiokafka import AIOKafkaProducer
 from app.core.config import settings
 from app.domain.events.base import DomainEvent
+
+logger = logging.getLogger(__name__)
 
 
 class KafkaEventProducer:
@@ -27,20 +30,43 @@ class KafkaEventProducer:
             await self._producer.stop()
 
     async def publish_event(self, event: DomainEvent, topic: Optional[str] = None) -> None:
-        """Publish a domain event to a Kafka topic."""
+        """Publish a domain event to a Kafka topic.
+
+        Uses aggregate_id as the partition key to guarantee event ordering
+        per aggregate across all events in the same topic.
+        """
         if not self._producer:
             raise RuntimeError("Kafka producer not started")
 
         topic = topic or event.event_type()
-        await self._producer.send_and_wait(topic, {
+        payload = {
             "event_id": event.event_id,
             "event_type": event.event_type(),
             "aggregate_id": event.aggregate_id,
             "occurred_at": event.occurred_at.isoformat(),
             "data": event.data,
-        })
+        }
+        # Propagate correlation_id if present on the event
+        if hasattr(event, "correlation_id") and event.correlation_id:
+            payload["correlation_id"] = event.correlation_id
+
+        await self._producer.send_and_wait(
+            topic,
+            payload,
+            key=event.aggregate_id.encode("utf-8"),
+        )
 
     async def publish_events(self, events: list[DomainEvent], topic: Optional[str] = None) -> None:
-        """Publish multiple domain events."""
+        """Publish multiple domain events.
+
+        All events are published with aggregate_id as partition key,
+        ensuring causal ordering per aggregate across Kafka partitions.
+        """
         for event in events:
-            await self.publish_event(event, topic)
+            try:
+                await self.publish_event(event, topic)
+            except Exception as e:
+                logger.error(
+                    "Failed to publish event %s to topic %s: %s",
+                    event.event_id, topic or event.event_type(), e,
+                )

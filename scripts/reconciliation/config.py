@@ -45,6 +45,7 @@ class ReconciliationConfig:
     max_discrepancy_rate: float = 0.001  # 0.1% max discrepancy
     max_block_lag: int = 10  # Max blocks behind before alert
     reconciliation_window_hours: int = 24  # Lookback window
+    latency_buffer_blocks: int = 3  # Buffer de latência para evitar falsos positivos em forks/reorgs
 
     # Execution intervals (in seconds)
     payment_interval: int = 3600  # 1 hour

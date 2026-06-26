@@ -1,5 +1,7 @@
 """Agent management endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_db_session
 from app.api.v1.schemas.agents import (
@@ -46,6 +48,75 @@ async def register_agent(
         owner_address=body.owner_address,
         delegation_address=body.delegation_address,
     )
+
+
+@router.get("", response_model=list[AgentResponse])
+async def list_agents(
+    owner_address: Optional[str] = Query(None, description="Filter by owner Ethereum address"),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """List agents, optionally filtered by owner_address."""
+    event_store = PostgresEventStore(db)
+
+    if owner_address:
+        # Busca no banco por owner_address nos eventos AgentRegistered
+        owner_lower = owner_address.lower()
+        query = text("""
+            SELECT DISTINCT aggregate_id
+            FROM events
+            WHERE event_type = 'AgentRegistered'
+              AND LOWER(data->>'owner_address') = :owner_address
+            ORDER BY aggregate_id
+        """)
+        result = await db.execute(query, {"owner_address": owner_lower})
+        rows = result.fetchall()
+
+        agents = []
+        for (agg_id,) in rows:
+            events = await event_store.load_stream(agg_id)
+            if events:
+                from app.domain.aggregates.agent import AgentAggregate
+                agent = AgentAggregate(agg_id)
+                for event in events:
+                    agent._apply(event)
+                agents.append(AgentResponse(
+                    agent_id=agent.agent_id,
+                    owner_address=agent.owner_address or "",
+                    delegation_address=agent.delegation_address,
+                    delegation_active=agent.delegation_active,
+                    reputation_score=agent.reputation_score,
+                    version=agent.version,
+                ))
+        return agents
+
+    # Sem filtro: retorna todos os agentes (limitado)
+    query = text("""
+        SELECT DISTINCT aggregate_id
+        FROM events
+        WHERE event_type = 'AgentRegistered'
+        ORDER BY aggregate_id
+        LIMIT 100
+    """)
+    result = await db.execute(query)
+    rows = result.fetchall()
+
+    agents = []
+    for (agg_id,) in rows:
+        events = await event_store.load_stream(agg_id)
+        if events:
+            from app.domain.aggregates.agent import AgentAggregate
+            agent = AgentAggregate(agg_id)
+            for event in events:
+                agent._apply(event)
+            agents.append(AgentResponse(
+                agent_id=agent.agent_id,
+                owner_address=agent.owner_address or "",
+                delegation_address=agent.delegation_address,
+                delegation_active=agent.delegation_active,
+                reputation_score=agent.reputation_score,
+                version=agent.version,
+            ))
+    return agents
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)

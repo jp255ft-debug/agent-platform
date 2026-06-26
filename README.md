@@ -1,8 +1,11 @@
-# Agent Platform 🤖⛓️
+# Agent Platform — DePIN Procurement Engine 🚀⛓️
 
-**A production-hardened backend infrastructure for autonomous AI agents with x402 micropayments, EIP-7702 delegation, and on-chain reputation.**
+**Chassi definitivo de Governança de Custo e Liquidação para Provedores de DePIN e Agentes Autônomos.**
+
+*Infraestrutura M2M (Machine-to-Machine) para Alocação de Recursos DePIN com x402 micropayments, EIP-7702 delegation, State Channels e Kill-Switch de Risco Zero.*
 
 [![CI](https://github.com/jp255ft-debug/agent-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/jp255ft-debug/agent-platform/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-70%25-brightgreen)](https://github.com/jp255ft-debug/agent-platform/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg)](https://www.postgresql.org/)
@@ -44,26 +47,38 @@
 
 ## 🎯 Overview
 
-The **Agent Platform** is a production-ready backend infrastructure for autonomous agents that:
+O **Agent Platform** é o **chassi definitivo de Governança de Custo e Liquidação para Provedores de DePIN e Agentes Autônomos** — uma infraestrutura M2M (Machine-to-Machine) que permite:
 
-- **Consume compute resources** paying per-use via **x402** (on-chain micropayments)
-- **Delegate authority** using **EIP-7702** (account delegation — adopted by Coinbase, now under Linux Foundation)
-- **Build reputation** through **Soulbound Tokens (SBT)**
-- **Operate on Base L2** (Ethereum Layer 2)
+- **Alocar recursos DePIN** (GPU TFLOPS/hora, VRAM, Context-Tokens) com pagamento por uso via **x402**
+- **Delegar autoridade gasless** usando **EIP-7702** (account delegation — adotado pela Coinbase, agora sob a Linux Foundation)
+- **Executar Kill-Switch de Risco Zero** quando o orçamento delegado é excedido
+- **Construir reputação on-chain** através de **Soulbound Tokens (SBT)**
+- **Operar em Base L2** (Ethereum Layer 2) com **State Channels** para liquidação off-chain
 
-### Core Flow
+### Core Flow (DePIN Procurement)
 
 ```
-1. Agent → POST /consume (with x402 proof)
-2. Backend verifies payment on-chain
-3. Creates billing session (Event Store)
-4. Publishes event to Kafka
-5. Agent receives session_id
+1. Autonomous Agent → POST /consume (GPU lease request with x402 proof)
+2. Backend verifica pagamento on-chain via PaymentVerifier.sol
+3. Cria sessão de GPU lease no Event Store (PostgreSQL)
+4. Publica evento ResourceConsumedV2 no Kafka
+5. Billing tick: calcula custo = (p_gpu * tflops * delta_t) + (p_token * n_tokens)
+6. Payment Simulator verifica crédito acumulado vs orçamento delegado (EIP-7702)
+7. Se within budget → emite State Channel Proof
+8. Se over budget → dispara Kill-Switch (desconecta nó GPU)
 ```
+
+### Métricas-Chave para Investidores
+
+| Métrica | Descrição |
+|---------|-----------|
+| **Total Value Settled (TVS)** | Volume total de USDC transacionado entre agentes e nós DePIN |
+| **Active GPU Leases** | Quantidade de sessões de billing ativas de agentes alugando hardware |
+| **Bad Debt Prevented** | USDC economizado por interrupções do kill-switch antes de gerar inadimplência |
 
 ### Why This Matters
 
-The x402 protocol, donated by Coinbase to the **Linux Foundation** in April 2026, is now backed by **Google, Microsoft, Visa, Stripe, and Mastercard**. EIP-7702 is being actively integrated into Ethereum clients (Go-Ethereum already implements EIP-7702 pricing). This platform is built at the intersection of these two transformative standards.
+O protocolo x402, doado pela Coinbase à **Linux Foundation** em Abril de 2026, é agora apoiado por **Google, Microsoft, Visa, Stripe e Mastercard**. O EIP-7702 está sendo integrado ativamente nos clientes Ethereum (Go-Ethereum já implementa precificação EIP-7702). Esta plataforma é construída na interseção desses dois padrões transformadores, agora aplicados ao mercado de **DePIN (Decentralized Physical Infrastructure Networks)** — um setor projetado para movimentar **US$ 3.5 trilhões** até 2032.
 
 ---
 
@@ -426,7 +441,7 @@ Three pre-configured dashboards in `monitoring/grafana/dashboards/`:
 
 | Dashboard | Description |
 |-----------|-------------|
-| `agent-platform-overview.json` | Business metrics: requests, revenue, active agents |
+| `agent-platform-overview.json` | **DePIN Business Metrics**: TVS (Total Value Settled), Active GPU Leases, Bad Debt Prevented, Kill-Switch Events, Provider Distribution |
 | `agent-platform-reconciliation.json` | Discrepancy monitoring and alerts |
 | `agent-platform-performance.json` | System performance (Redis, PostgreSQL, Kafka) |
 

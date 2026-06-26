@@ -1,11 +1,14 @@
 """PostgreSQL event store implementation."""
 import json
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.events.base import DomainEvent
 from app.domain.repositories.event_store import EventStore
+from app.core.exceptions import ConcurrencyError
+from app.infrastructure.db.upcasters import EventUpcaster
 
 
 class PostgresEventStore(EventStore):
@@ -18,8 +21,13 @@ class PostgresEventStore(EventStore):
         self, stream_id: str, events: List[DomainEvent],
         expected_version: Optional[int] = None,
     ) -> None:
-        """Append events to a stream with optimistic concurrency control."""
-        async with self._session.begin():
+        """Append events to a stream with optimistic concurrency control.
+
+        Uses a UNIQUE(stream_id, version) constraint at the database level
+        to detect concurrent writes. If violated, raises ConcurrencyError
+        so the application layer can retry.
+        """
+        try:
             for i, event in enumerate(events):
                 event_dict = event.to_dict()
                 event_dict["stream_id"] = stream_id
@@ -38,8 +46,28 @@ class PostgresEventStore(EventStore):
                     "event_type": event_dict["event_type"],
                     "aggregate_id": event_dict["aggregate_id"],
                     "data": json.dumps(event_dict["data"]),
-                    "occurred_at": event_dict["occurred_at"],
+                    "occurred_at": event.occurred_at,
                 })
+        except IntegrityError as e:
+            if "uq_stream_version" in str(e.orig):
+                # Load actual version to provide meaningful error context
+                actual = await self._get_latest_version(stream_id)
+                raise ConcurrencyError(
+                    aggregate_id=stream_id,
+                    expected_version=expected_version or 0,
+                    actual_version=actual,
+                ) from e
+            raise
+
+    async def _get_latest_version(self, stream_id: str) -> int:
+        """Get the latest version for a stream (used for OCC error context)."""
+        query = text("""
+            SELECT COALESCE(MAX(version), 0)
+            FROM events
+            WHERE stream_id = :stream_id
+        """)
+        result = await self._session.execute(query, {"stream_id": stream_id})
+        return result.scalar() or 0
 
     async def load_stream(self, stream_id: str) -> List[DomainEvent]:
         """Load all events for a stream in order."""
@@ -73,12 +101,19 @@ class PostgresEventStore(EventStore):
         return [self._row_to_event(row) for row in rows]
 
     def _row_to_event(self, row) -> DomainEvent:
-        """Convert a database row back to a DomainEvent."""
+        """Convert a database row back to a DomainEvent.
+
+        Before deserialization, the raw payload passes through the
+        EventUpcaster pipeline. This ensures legacy V1 events are
+        transparently upgraded to the latest schema version without
+        requiring a backfill migration on the database.
+        """
         from app.domain.events.agent_events import (
             AgentRegistered, AgentDelegated, AgentDelegationRevoked, AgentReputationUpdated,
         )
         from app.domain.events.billing_events import (
-            BillingSessionStarted, ResourceConsumed, BillingSessionClosed, BillingSessionSettled,
+            BillingSessionStarted, ResourceConsumed, ResourceConsumedV2,
+            BillingSessionClosed, BillingSessionSettled,
         )
         from app.domain.events.payment_events import (
             PaymentReceived, PaymentVerified, PaymentFailed, InvoiceGenerated, InvoicePaid,
@@ -86,36 +121,73 @@ class PostgresEventStore(EventStore):
         from app.domain.events.api_key_events import (
             APIKeyCreated, APIKeyRevoked, APIKeyExpired, APIKeyRotated, APIKeyUsed,
         )
+        from app.domain.events.gpu_events import (
+            GPULeaseRequested, GPULeaseProvisioned, GPULeaseActivated,
+            GPULeaseExtended, GPULeaseTerminated, GPULeaseExpired,
+        )
 
         event_type_map = {
+            # Agent events
             "AgentRegistered": AgentRegistered,
             "AgentDelegated": AgentDelegated,
             "AgentDelegationRevoked": AgentDelegationRevoked,
             "AgentReputationUpdated": AgentReputationUpdated,
+            # Billing events
             "BillingSessionStarted": BillingSessionStarted,
             "ResourceConsumed": ResourceConsumed,
+            "ResourceConsumedV2": ResourceConsumedV2,
             "BillingSessionClosed": BillingSessionClosed,
             "BillingSessionSettled": BillingSessionSettled,
+            # Payment events
             "PaymentReceived": PaymentReceived,
             "PaymentVerified": PaymentVerified,
             "PaymentFailed": PaymentFailed,
             "InvoiceGenerated": InvoiceGenerated,
             "InvoicePaid": InvoicePaid,
+            # API Key events
             "APIKeyCreated": APIKeyCreated,
             "APIKeyRevoked": APIKeyRevoked,
             "APIKeyExpired": APIKeyExpired,
             "APIKeyRotated": APIKeyRotated,
             "APIKeyUsed": APIKeyUsed,
+            # GPU Lease events
+            "GPULeaseRequested": GPULeaseRequested,
+            "GPULeaseProvisioned": GPULeaseProvisioned,
+            "GPULeaseActivated": GPULeaseActivated,
+            "GPULeaseExtended": GPULeaseExtended,
+            "GPULeaseTerminated": GPULeaseTerminated,
+            "GPULeaseExpired": GPULeaseExpired,
         }
 
-        event_cls = event_type_map.get(row.event_type)
-        if event_cls is None:
-            raise ValueError(f"Unknown event type: {row.event_type}")
-
+        # ── Step 1: Parse raw JSONB data ──────────────────────────
         data = json.loads(row.data) if isinstance(row.data, str) else row.data
+
+        # ── Step 2: Build raw payload for upcaster ─────────────────
+        raw_payload = {
+            "event_id": row.event_id,
+            "stream_id": row.stream_id,
+            "version": row.version,
+            "event_type": row.event_type,
+            "aggregate_id": row.aggregate_id,
+            "data": data,
+            "occurred_at": row.occurred_at.isoformat() if isinstance(row.occurred_at, datetime) else row.occurred_at,
+        }
+
+        # ── Step 3: Apply upcast transformations ───────────────────
+        upcasted = EventUpcaster.upcast(raw_payload)
+
+        # ── Step 4: Deserialize to domain event ────────────────────
+        event_cls = event_type_map.get(upcasted["event_type"])
+        if event_cls is None:
+            raise ValueError(f"Unknown event type after upcast: {upcasted['event_type']}")
+
         event = event_cls.__new__(event_cls)
-        event.event_id = row.event_id
-        event.aggregate_id = row.aggregate_id
-        event.occurred_at = row.occurred_at if isinstance(row.occurred_at, datetime) else datetime.fromisoformat(row.occurred_at)
-        event.data = data
+        event.event_id = upcasted["event_id"]
+        event.aggregate_id = upcasted["aggregate_id"]
+        event.occurred_at = (
+            row.occurred_at
+            if isinstance(row.occurred_at, datetime)
+            else datetime.fromisoformat(upcasted["occurred_at"])
+        )
+        event.data = upcasted["data"]
         return event

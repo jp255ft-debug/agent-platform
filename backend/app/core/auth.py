@@ -62,26 +62,23 @@ async def validate_api_key(
     request: Request,
     api_key_header: Optional[str] = None,
     repo: APIKeyRepository = Depends(get_api_key_repository),
-) -> str:
+) -> Optional[str]:
     """
     Dependency: validates X-API-Key header and returns agent_id.
 
     Expects header format: X-API-Key: <key_id>.<plain_key>
 
-    Raises:
-        AuthenticationError: if key missing, invalid format, not found, or revoked.
-        KYCRequiredError: if agent exists but KYC not approved (optional).
-
     Returns:
-        agent_id of the authenticated agent.
+        agent_id of the authenticated agent, or None if no key provided.
+        (Callers should handle None for bootstrap scenarios.)
+
+    Raises:
+        AuthenticationError: if key provided but invalid format, not found, or revoked.
     """
     # Extract from header
     api_key = api_key_header or request.headers.get("X-API-Key")
     if not api_key:
-        raise AuthenticationError(
-            message="Missing API key",
-            details={"header": "X-API-Key is required"},
-        )
+        return None  # No key provided — caller decides if this is allowed
 
     # Parse key_id.plain_key format
     if "." not in api_key:
@@ -121,6 +118,6 @@ async def validate_api_key(
     return agent_id
 
 
-async def get_current_agent(agent_id: str = Depends(validate_api_key)) -> str:
+async def get_current_agent(agent_id: Optional[str] = Depends(validate_api_key)) -> Optional[str]:
     """Simple alias: returns agent_id of authenticated agent."""
     return agent_id

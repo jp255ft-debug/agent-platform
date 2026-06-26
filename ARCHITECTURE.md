@@ -56,14 +56,104 @@
 │  │  │ - Agent  │  │ - Agent  │  │  (Protocols)   │   │    │
 │  │  │ - Billing│  │ - Billing│  │                │   │    │
 │  │  │ - Invoice│  │ - Payment│  │                │   │    │
+│  │  │ - Provider│  │ - Provider│ │                │   │    │
+│  │  │ - API Key│  │ - API Key│  │                │   │    │
 │  │  └──────────┘  └──────────┘  └────────────────┘   │    │
 │  └────────────────────────────────────────────────────┘    │
 └────────────────────────────────────────────────────────────┘
 ```
 
+
+## 🏭 DePIN Procurement Domain
+
+### ProviderAggregate (Event Sourced)
+
+O `ProviderAggregate` gerencia o ciclo de vida completo de um provedor DePIN:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    ProviderAggregate                         │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │                  State Machine                       │    │
+│  │                                                      │    │
+│  │    PENDING ──(stake ≥ 10 USDC)──▶ ACTIVE            │    │
+│  │       │                              │              │    │
+│  │       │                              ├──▶ SUSPENDED │    │
+│  │       │                              │   (health)   │    │
+│  │       │                              │              │    │
+│  │       │                              ├──▶ SLASHED   │    │
+│  │       │                              │   (penalty)  │    │
+│  │       │                              │              │    │
+│  │       │                              └──▶ INACTIVE  │    │
+│  │       │                                  (unstake)  │    │
+│  │       └─────────────────────────────────────────────┘    │
+│  │                                                          │
+│  │  GPUSpecs { model, vram_gb, tflops_fp16, price_per_hour }│
+│  │  Stake: uint256 (micro USDC)                             │
+│  │  Reputation: uint8 (0-100)                               │
+│  │  TotalUptime: uint256 (seconds)                          │
+│  └──────────────────────────────────────────────────────────┘
+```
+
+### Eventos do Provedor
+
+| Evento | Gatilho | Efeito |
+|--------|---------|--------|
+| `ProviderRegistered` | Registro do nó | Cria agregado em PENDING |
+| `ProviderStaked` | Stake ≥ 10 USDC | Transição para ACTIVE |
+| `ProviderStatusChanged` | Health check / admin | ACTIVE ↔ SUSPENDED |
+| `HealthReported` | Telemetria periódica | Atualiza uptime |
+| `GPUSpecsUpdated` | Upgrade de hardware | Atualiza specs |
+| `SlashingApplied` | Violação de SLA | Penaliza stake + reputação |
+| `ProviderUnstaked` | Saída voluntária | Transição para INACTIVE |
+| `ProviderJobCompleted` | Fim de sessão GPU | Registra job |
+
+---
+
 ## 🔄 Data Flow
 
-### Resource Consumption Flow
+### DePIN Procurement Flow (GPU Lease)
+```
+Autonomous Agent          Backend              ProviderAggregate       Blockchain
+      │                      │                       │                    │
+      │  POST /consume       │                       │                    │
+      │  (x402 proof)        │                       │                    │
+      │─────────────────────▶│                       │                    │
+      │                      │  Verify provider      │                    │
+      │                      │  is ACTIVE + staked   │                    │
+      │                      │──────────────────────▶│                    │
+      │                      │  Check GPU specs      │                    │
+      │                      │◀──────────────────────│                    │
+      │                      │                       │                    │
+      │                      │  Verify x402 payment  │                    │
+      │                      │───────────────────────────────────────────▶│
+      │                      │                       │                    │
+      │                      │  Create BillingSession│                    │
+      │                      │  (ResourceConsumedV2) │                    │
+      │                      │                       │                    │
+      │                      │  Publish → Kafka      │                    │
+      │                      │  (billing.resource    │                    │
+      │                      │   .consumed.v2)       │                    │
+      │                      │                       │                    │
+      │                      │  Payment Simulator    │                    │
+      │                      │  verifica crédito     │                    │
+      │                      │  vs orçamento delegado│                    │
+      │                      │                       │                    │
+      │  ┌── within budget ──┤  Emite State Channel  │                    │
+      │  │                   │  Proof                │                    │
+      │  │  200 OK           │                       │                    │
+      │  │◀──────────────────│                       │                    │
+      │  │                   │                       │                    │
+      │  └── over budget ────┤  KILL-SWITCH          │                    │
+      │                      │  Desconecta nó GPU    │                    │
+      │                      │  (ProviderJobCompleted│                    │
+      │                      │   with success=false) │                    │
+      │                      │──────────────────────▶│                    │
+```
+
+### Resource Consumption Flow (Legacy V1)
+
 ```
 Agent                    Backend                    Blockchain
   │                        │                          │

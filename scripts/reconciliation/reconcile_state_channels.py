@@ -201,7 +201,12 @@ class BlockchainChannelReader:
         return events
 
     async def get_current_block(self) -> int:
-        return self._w3.eth.block_number
+        return await self._w3.eth.block_number
+
+    async def get_safe_block(self) -> int:
+        """Retorna o último bloco seguro, aplicando buffer de latência para evitar reorgs."""
+        current = await self._w3.eth.block_number
+        return max(0, current - config.latency_buffer_blocks)
 
 
 # =============================================================================

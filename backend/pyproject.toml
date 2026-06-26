@@ -8,15 +8,79 @@ version = "0.1.0"
 description = "Backend for Agent Platform - Event Sourcing + x402"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.104.0", "uvicorn[standard]>=0.24.0",
-    "sqlalchemy[asyncio]>=2.0.0", "asyncpg>=0.29.0",
-    "alembic>=1.13.0", "redis[hiredis]>=5.0.0",
-    "aiokafka>=0.10.0", "web3>=6.0.0",
-    "pydantic>=2.0.0", "pydantic-settings>=2.0.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "asyncpg>=0.29.0",
+    "alembic>=1.13.0",
+    "redis[hiredis]>=5.0.0",
+    "aiokafka>=0.10.0",
+    "web3>=6.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "httpx>=0.25.0",
+    "bcrypt>=4.1.0",
+    "prometheus-client>=0.19.0",
+    "orjson>=3.9.10",
+    "python-dotenv>=1.0.0",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+    "bandit>=1.7.0",
+    "safety>=3.0.0",
+    "pre-commit>=3.6.0",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:legacy_module",
+    "ignore::DeprecationWarning:pydantic",
+    "ignore::DeprecationWarning:redis",
+    "ignore::DeprecationWarning:websockets",
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
+]
+addopts = "-v --cov=app --cov-report=term-missing --cov-report=html --cov-fail-under=30"
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/main.py",
+    "app/core/logging.py",
+    "app/scripts/*",
+]
+
+[tool.coverage.report]
+fail_under = 30
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "pass",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ARG"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true

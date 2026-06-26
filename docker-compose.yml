@@ -144,6 +144,7 @@ services:
       KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-agent-platform-consumer}
       KAFKA_AUTO_OFFSET_RESET: ${KAFKA_AUTO_OFFSET_RESET:-earliest}
       # Backend
+      APP_DEBUG: ${APP_DEBUG:-true}
       BACKEND_HOST: ${BACKEND_HOST:-0.0.0.0}
       BACKEND_PORT: ${BACKEND_PORT:-8000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -164,6 +165,10 @@ services:
       JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-60}
       # Monitoring
       ENABLE_METRICS: ${ENABLE_METRICS:-true}
+      # io.net DePIN (GPU Leasing)
+      IO_NET_API_KEY: ${IO_NET_API_KEY:-}
+      IO_NET_AUTH_TOKEN: ${IO_NET_AUTH_TOKEN:-}
+      IO_NET_SIMULATOR: ${IO_NET_SIMULATOR:-true}
     volumes:
       # Hot-reload in development: mount the app directory
       - ./backend/app:/app/app:ro
@@ -197,8 +202,46 @@ services:
       /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic billing.invoice.generated --partitions 3 --replication-factor 1
       /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic billing.invoice.paid --partitions 3 --replication-factor 1
       /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.verified --partitions 3 --replication-factor 1
+      # DePIN Provider Telemetry Topics
+      /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic depin.provider.health --partitions 3 --replication-factor 1
+      /usr/bin/kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic depin.provider.status --partitions 3 --replication-factor 1
       echo 'All topics created successfully!'
       "
+    logging: *default-logging
+    networks:
+      - agent-platform-network
+
+  # ─── Node Service (GPU Telemetry & gRPC) ────────────────────────────────────
+  node-service:
+    profiles: ["full"]
+    build:
+      context: ./node-service
+      dockerfile: Dockerfile
+    container_name: agent-node-service
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "${NODE_SERVICE_GRPC_PORT:-50051}:50051"
+    environment:
+      GRPC_PORT: ${NODE_SERVICE_GRPC_PORT:-50051}
+      PROVIDER_ID: ${NODE_SERVICE_PROVIDER_ID:-agent-node-1}
+      COLLECTION_INTERVAL_MS: ${NODE_SERVICE_COLLECTION_INTERVAL:-30000}
+      GPU_INDEX: ${NODE_SERVICE_GPU_INDEX:-0}
+      KAFKA_BROKERS: kafka:9092
+      GPU_COLLECTOR_ENABLED: ${NODE_SERVICE_GPU_COLLECTOR:-true}
+      GRPC_SERVER_ENABLED: ${NODE_SERVICE_GRPC_ENABLED:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      # Mount nvidia-smi for GPU metrics (if available on host)
+      - /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 50051 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     logging: *default-logging
     networks:
       - agent-platform-network

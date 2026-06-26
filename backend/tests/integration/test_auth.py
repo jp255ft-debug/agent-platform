@@ -102,7 +102,8 @@ class TestValidateAPIKey:
         from app.domain.aggregates.api_key import APIKeyAggregate
 
         # Create a key and revoke it
-        aggregate = APIKeyAggregate.create("agent-123", "key123", "stored_hash")
+        aggregate = APIKeyAggregate(agent_id="agent-123")
+        aggregate.create(key_id="key123", key_hash="stored_hash")
         aggregate.revoke_key("key123")
 
         request = MagicMock()
@@ -124,7 +125,8 @@ class TestValidateAPIKey:
         """Test that a valid key returns the agent_id."""
         from app.domain.aggregates.api_key import APIKeyAggregate
 
-        aggregate = APIKeyAggregate.create("agent-123", "key123", "stored_hash")
+        aggregate = APIKeyAggregate(agent_id="agent-123")
+        aggregate.create(key_id="key123", key_hash="stored_hash")
 
         request = MagicMock()
         request.headers = {"X-API-Key": "key123.plain_key"}

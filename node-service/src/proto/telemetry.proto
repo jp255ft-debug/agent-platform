@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package agent_platform.telemetry;
+
+// =============================================================================
+// Agent Platform — GPU Telemetry Protocol
+// =============================================================================
+// This protobuf defines the gRPC service for GPU health reporting from
+// DePIN provider nodes. The node-service collects telemetry and publishes
+// to Kafka for consumption by the backend (ProviderAggregate).
+// =============================================================================
+
+// ─── GPU Telemetry Service ──────────────────────────────────────────────────
+
+service GPUTelemetry {
+    // ReportGPUHealth — Called by DePIN provider nodes to report telemetry
+    rpc ReportGPUHealth(stream GPUHealthReport) returns (HealthAck);
+
+    // GetGPUStatus — Query the current status of a specific GPU node
+    rpc GetGPUStatus(GPUStatusRequest) returns (GPUStatusResponse);
+}
+
+// ─── Messages ───────────────────────────────────────────────────────────────
+
+message GPUHealthReport {
+    string provider_id = 1;          // DePIN provider ID (e.g., "io-net-node-42")
+    string gpu_model = 2;            // GPU model (e.g., "NVIDIA A100 80GB")
+    double gpu_utilization = 3;      // GPU utilization (0.0 - 100.0)
+    double temperature_celsius = 4;  // GPU temperature in Celsius
+    double memory_used_gb = 5;       // VRAM used in GB
+    double memory_total_gb = 6;      // Total VRAM in GB
+    double power_watts = 7;          // Power draw in watts
+    uint64 uptime_seconds = 8;       // Node uptime in seconds
+    uint64 timestamp = 9;            // Unix timestamp (seconds)
+    double tflops_fp16 = 10;         // TFLOPS FP16 measured
+    uint32 active_jobs = 11;         // Number of active GPU jobs
+    string status = 12;              // "online", "degraded", "offline"
+    map<string, string> labels = 13; // Additional metadata labels
+}
+
+message HealthAck {
+    bool accepted = 1;
+    string message = 2;
+    uint64 processed_at = 3;
+}
+
+message GPUStatusRequest {
+    string provider_id = 1;
+}
+
+message GPUStatusResponse {
+    string provider_id = 1;
+    string gpu_model = 2;
+    double gpu_utilization = 3;
+    double temperature_celsius = 4;
+    double memory_used_gb = 5;
+    double memory_total_gb = 6;
+    string status = 7;
+    uint64 last_report_at = 8;
+    uint64 uptime_seconds = 9;
+}

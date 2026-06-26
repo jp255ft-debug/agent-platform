@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Header, status
 
 from app.api.v1.schemas.api_keys import (
     APIKeyCreateRequest,
@@ -19,6 +20,7 @@ from app.core.auth import (
     get_api_key_repository,
     validate_api_key,
 )
+from app.core.config import settings
 from app.core.exceptions import AuthenticationError
 from app.infrastructure.db.repositories.api_key_repository import APIKeyRepository
 
@@ -30,13 +32,34 @@ async def create_api_key(
     agent_id: str,
     request: APIKeyCreateRequest,
     repo: APIKeyRepository = Depends(get_api_key_repository),
-    authenticated_agent: str = Depends(validate_api_key),
+    authenticated_agent: Optional[str] = Depends(validate_api_key),
+    x_bootstrap_key: Optional[str] = Header(None),
 ):
     """Create a new API key for an agent.
 
-    Requires authentication via existing API key.
+    Authentication (choose one):
+      1. Existing API key via X-API-Key header (standard)
+      2. Bootstrap key via X-Bootstrap-Key header (development only)
+
     The plain_key is returned only once — store it securely.
     """
+    # Bootstrap mode: allow creating first key without existing API key
+    # Only works when APP_DEBUG=True (development/test environments)
+    if authenticated_agent is None and x_bootstrap_key:
+        if settings.APP_DEBUG:
+            authenticated_agent = agent_id
+        else:
+            raise AuthenticationError(
+                message="Bootstrap key not allowed in production",
+                details={"hint": "Set APP_DEBUG=true in .env for development mode"},
+            )
+
+    if authenticated_agent is None:
+        raise AuthenticationError(
+            message="Missing authentication. Provide X-API-Key or X-Bootstrap-Key header.",
+            details={"hint": "Use X-Bootstrap-Key: true for first key creation in development"},
+        )
+
     # Ensure the authenticated agent matches or is admin
     if authenticated_agent != agent_id:
         raise AuthenticationError(
@@ -50,7 +73,8 @@ async def create_api_key(
 
     # Load aggregate and add key
     aggregate = await repo.load_agent_keys(agent_id)
-    aggregate.create(agent_id, key_id, hashed_key, expires_in_days=request.expires_in_days)
+    aggregate.create(key_id, hashed_key, expires_in_days=request.expires_in_days)
+    # Note: request.label is available for future use (e.g., key metadata storage)
     await repo.save(aggregate)
 
     # Find the created key for expires_at
@@ -69,10 +93,26 @@ async def create_api_key(
 async def list_api_keys(
     agent_id: str,
     repo: APIKeyRepository = Depends(get_api_key_repository),
-    authenticated_agent: str = Depends(validate_api_key),
+    authenticated_agent: Optional[str] = Depends(validate_api_key),
+    x_bootstrap_key: Optional[str] = Header(None),
 ):
-    """List all API keys for an agent (public info only, no plain keys)."""
-    if authenticated_agent != agent_id:
+    """List all API keys for an agent (public info only, no plain keys).
+
+    Authentication (choose one):
+      1. Existing API key via X-API-Key header (standard)
+      2. Bootstrap key via X-Bootstrap-Key header (development only)
+    """
+    # Bootstrap mode: allow listing keys without existing API key
+    if authenticated_agent is None and x_bootstrap_key:
+        if settings.APP_DEBUG:
+            authenticated_agent = agent_id
+        else:
+            raise AuthenticationError(
+                message="Bootstrap key not allowed in production",
+                details={"hint": "Set APP_DEBUG=true in .env for development mode"},
+            )
+
+    if not authenticated_agent or authenticated_agent != agent_id:
         raise AuthenticationError(
             message="Cannot list API keys for another agent",
             details={"authenticated_agent": authenticated_agent, "target_agent": agent_id},
@@ -100,10 +140,26 @@ async def revoke_api_key(
     key_id: str,
     request: APIKeyRevokeRequest,
     repo: APIKeyRepository = Depends(get_api_key_repository),
-    authenticated_agent: str = Depends(validate_api_key),
+    authenticated_agent: Optional[str] = Depends(validate_api_key),
+    x_bootstrap_key: Optional[str] = Header(None),
 ):
-    """Revoke an API key."""
-    if authenticated_agent != agent_id:
+    """Revoke an API key.
+
+    Authentication (choose one):
+      1. Existing API key via X-API-Key header (standard)
+      2. Bootstrap key via X-Bootstrap-Key header (development only)
+    """
+    # Bootstrap mode: allow revoking keys without existing API key
+    if authenticated_agent is None and x_bootstrap_key:
+        if settings.APP_DEBUG:
+            authenticated_agent = agent_id
+        else:
+            raise AuthenticationError(
+                message="Bootstrap key not allowed in production",
+                details={"hint": "Set APP_DEBUG=true in .env for development mode"},
+            )
+
+    if not authenticated_agent or authenticated_agent != agent_id:
         raise AuthenticationError(
             message="Cannot revoke API key for another agent",
             details={"authenticated_agent": authenticated_agent, "target_agent": agent_id},
@@ -121,10 +177,26 @@ async def rotate_api_key(
     agent_id: str,
     key_id: str,
     repo: APIKeyRepository = Depends(get_api_key_repository),
-    authenticated_agent: str = Depends(validate_api_key),
+    authenticated_agent: Optional[str] = Depends(validate_api_key),
+    x_bootstrap_key: Optional[str] = Header(None),
 ):
-    """Rotate an API key: revoke old, create new."""
-    if authenticated_agent != agent_id:
+    """Rotate an API key: revoke old, create new.
+
+    Authentication (choose one):
+      1. Existing API key via X-API-Key header (standard)
+      2. Bootstrap key via X-Bootstrap-Key header (development only)
+    """
+    # Bootstrap mode: allow rotating keys without existing API key
+    if authenticated_agent is None and x_bootstrap_key:
+        if settings.APP_DEBUG:
+            authenticated_agent = agent_id
+        else:
+            raise AuthenticationError(
+                message="Bootstrap key not allowed in production",
+                details={"hint": "Set APP_DEBUG=true in .env for development mode"},
+            )
+
+    if not authenticated_agent or authenticated_agent != agent_id:
         raise AuthenticationError(
             message="Cannot rotate API key for another agent",
             details={"authenticated_agent": authenticated_agent, "target_agent": agent_id},

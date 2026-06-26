@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Optional, Tuple
 
 from redis.asyncio import Redis
@@ -47,6 +48,14 @@ class APIKeyRepository:
         # Update SQL lookup table for fast key_id → (agent_id, key_hash) resolution
         for event in changes:
             if event.event_type() == "APIKeyCreated":
+                # Convert ISO strings to datetime objects for PostgreSQL
+                expires_at = event.data["expires_at"]
+                created_at = event.data["created_at"]
+                if isinstance(expires_at, str):
+                    expires_at = datetime.fromisoformat(expires_at)
+                if isinstance(created_at, str):
+                    created_at = datetime.fromisoformat(created_at)
+
                 await self._db.execute(
                     text("""
                         INSERT INTO api_keys (key_id, agent_id, key_hash, expires_at, created_at)
@@ -60,8 +69,8 @@ class APIKeyRepository:
                         "key_id": event.data["key_id"],
                         "agent_id": aggregate.agent_id,
                         "key_hash": event.data["key_hash"],
-                        "expires_at": event.data["expires_at"],
-                        "created_at": event.data["created_at"],
+                        "expires_at": expires_at,
+                        "created_at": created_at,
                     },
                 )
                 # Invalidate Redis cache

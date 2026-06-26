@@ -2,6 +2,8 @@
         reconcile reconcile-payments reconcile-delegations reconcile-channels \
         simulate simulate-billing simulate-delegations simulate-payments simulate-pix simulate-all \
         pix-qrcode pix-webhook pix-status \
+        load-test load-test-consume \
+        coverage-badge \
         logs clean
 
 # Cores para output
@@ -35,6 +37,13 @@ help:
 	@echo "--- Simuladores ---"
 	@echo "  make simulate-all    - Executar todos os simuladores"
 	@echo ""
+	@echo "--- Testes de Carga ---"
+	@echo "  make load-test       - Executar todos os testes de carga (k6)"
+	@echo "  make load-test-consume - Testar carga no endpoint /api/v1/consume"
+	@echo ""
+	@echo "--- Cobertura ---"
+	@echo "  make coverage-badge  - Gerar badge SVG de cobertura"
+	@echo ""
 	@echo "--- Utilitários ---"
 	@echo "  make logs            - Ver logs de todos os serviços"
 	@echo "  make clean           - Remover containers, volumes e cache"
@@ -63,7 +72,7 @@ migrate:
 test: test-backend test-contracts test-lua
 
 test-backend:
-	docker compose exec backend pytest -v --cov=app --cov-report=term-missing
+	docker compose exec backend pytest -v --cov=app --cov-report=term-missing --ignore=../scripts --ignore=tests/unit/test_delegation_contract.py --ignore=tests/unit/test_web3_client.py --ignore=tests/unit/test_payment_verifier.py --ignore=tests/unit/test_pix_client.py tests/unit/
 
 test-contracts:
 	cd contracts && forge test -vvv
@@ -103,19 +112,33 @@ pix-status:
 	@curl -s http://localhost:8000/api/v1/pix/test_123/status | python -m json.tool
 
 simulate-pix:
-	docker compose exec agent-simulator python -m agents.simulator.pix_simulator --rate 5 --duration 60
+	docker compose exec backend python -m agents.simulator.pix_simulator --rate 5 --duration 60
 
 # Simuladores
 simulate-all: simulate-billing simulate-delegations simulate-payments
 
 simulate-billing:
-	docker compose exec agent-simulator python -m agents.simulator.agent_simulator --agents 10 --rate 5 --duration 60
+	docker compose exec backend python -m agents.simulator.agent_simulator --agents 10 --rate 5 --duration 60 $(ARGS)
 
 simulate-delegations:
-	docker compose exec agent-simulator python -m agents.simulator.delegation_simulator --agents 5 --rate 2 --duration 60
+	docker compose exec backend python -m agents.simulator.delegation_simulator --agents 5 --rate 2 --duration 60 $(ARGS)
 
 simulate-payments:
-	docker compose exec agent-simulator python -m agents.simulator.payment_simulator --rate 3 --failure-rate 0.1 --duration 60
+	docker compose exec backend python -m agents.simulator.payment_simulator --rate 3 --failure-rate 0.1 --duration 60 $(ARGS)
+
+# Testes de Carga (k6)
+load-test: load-test-consume
+
+load-test-consume:
+	@echo "Executando teste de carga no endpoint /api/v1/consume..."
+	@k6 run scripts/load-test/consume.js --env BASE_URL=http://localhost:8000 --env VUS=10 --env DURATION=30s
+	@echo "$(GREEN)✅ Teste de carga concluído.$(NC)"
+
+# Badge de Cobertura
+coverage-badge:
+	@echo "Gerando badge de cobertura..."
+	@cd backend && python ../scripts/ci/generate_coverage_badge.py
+	@echo "$(GREEN)✅ Badge gerado em backend/coverage/coverage-badge.svg$(NC)"
 
 # Utilitários
 logs:

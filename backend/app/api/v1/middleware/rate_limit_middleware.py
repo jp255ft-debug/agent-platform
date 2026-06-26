@@ -1,8 +1,11 @@
 """Rate limiting middleware for FastAPI."""
+import logging
 from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 from redis.asyncio import Redis
+
+logger = logging.getLogger(__name__)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -39,8 +42,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 )
         except HTTPException:
             raise
-        except Exception:
-            # If Redis is down, allow the request
-            pass
+        except Exception as e:
+            # If Redis is down, allow the request (fail-open)
+            logger.warning("Redis unavailable, rate limiting disabled: %s", e)
 
         return await call_next(request)

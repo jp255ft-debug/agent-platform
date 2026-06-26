@@ -1,11 +1,11 @@
 {
   "__inputs": [],
   "__requires": [],
-  "title": "Agent Platform - Overview",
+  "title": "Agent Platform - DePIN Procurement Overview",
   "uid": "agent-platform-overview",
-  "version": 1,
+  "version": 2,
   "schemaVersion": 36,
-  "tags": ["agent-platform", "overview"],
+  "tags": ["agent-platform", "depin", "procurement", "overview"],
   "timezone": "browser",
   "editable": true,
   "refresh": "5m",
@@ -28,13 +28,39 @@
   },
   "panels": [
     {
-      "title": "Daily Active Agents",
+      "title": "Total Value Settled (TVS)",
       "type": "stat",
       "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4},
       "targets": [
         {
           "datasource": "${datasource}",
-          "rawSql": "SELECT COUNT(DISTINCT aggregate_id) AS value FROM events WHERE occurred_at >= NOW() - INTERVAL '24 hours'",
+          "rawSql": "SELECT COALESCE(SUM((data->>'amount_micro_usdc')::numeric) / 1000000, 0) AS value FROM events WHERE event_type IN ('PaymentVerified', 'BillingSessionSettled') AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "usd",
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 10},
+              {"color": "green", "value": 100}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Active GPU Leases",
+      "type": "stat",
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
+      "targets": [
+        {
+          "datasource": "${datasource}",
+          "rawSql": "SELECT COUNT(DISTINCT aggregate_id) AS value FROM events WHERE event_type = 'BillingSessionStarted' AND occurred_at >= NOW() - INTERVAL '24 hours'",
           "format": "table"
         }
       ],
@@ -53,59 +79,33 @@
       }
     },
     {
-      "title": "Revenue (24h)",
-      "type": "stat",
-      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
-      "targets": [
-        {
-          "datasource": "${datasource}",
-          "rawSql": "SELECT COALESCE(SUM((data->>'amount')::numeric), 0) AS value FROM events WHERE event_type = 'BillingSessionCompleted' AND occurred_at >= NOW() - INTERVAL '24 hours'",
-          "format": "table"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "wei",
-          "color": {"mode": "thresholds"},
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {"color": "red", "value": null},
-              {"color": "yellow", "value": 0},
-              {"color": "green", "value": 1000000000000000}
-            ]
-          }
-        }
-      }
-    },
-    {
-      "title": "Payment Success Rate",
+      "title": "Bad Debt Prevented",
       "type": "stat",
       "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4},
       "targets": [
         {
           "datasource": "${datasource}",
-          "rawSql": "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE event_type = 'PaymentVerified') / NULLIF(COUNT(*), 0), 2) AS value FROM events WHERE event_type IN ('PaymentVerified', 'PaymentFailed') AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "rawSql": "SELECT COALESCE(SUM((data->>'amount_usdc')::numeric), 0) AS value FROM events WHERE data->>'kill_switch_triggered' = 'true' AND occurred_at >= NOW() - INTERVAL '24 hours'",
           "format": "table"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
+          "unit": "usd",
           "color": {"mode": "thresholds"},
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "red", "value": null},
-              {"color": "yellow", "value": 95},
-              {"color": "green", "value": 99}
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 10},
+              {"color": "red", "value": 50}
             ]
           }
         }
       }
     },
     {
-      "title": "Active Delegations",
+      "title": "Active Delegations (EIP-7702)",
       "type": "stat",
       "gridPos": {"x": 12, "y": 0, "w": 4, "h": 4},
       "targets": [
@@ -130,13 +130,13 @@
       }
     },
     {
-      "title": "Pending Disputes",
+      "title": "Kill-Switch Events (24h)",
       "type": "stat",
       "gridPos": {"x": 16, "y": 0, "w": 4, "h": 4},
       "targets": [
         {
           "datasource": "${datasource}",
-          "rawSql": "SELECT COUNT(*) AS value FROM events WHERE event_type = 'DisputeRaised' AND occurred_at >= NOW() - INTERVAL '24 hours'",
+          "rawSql": "SELECT COUNT(*) AS value FROM events WHERE data->>'kill_switch_triggered' = 'true' AND occurred_at >= NOW() - INTERVAL '24 hours'",
           "format": "table"
         }
       ],
@@ -148,38 +148,38 @@
             "steps": [
               {"color": "green", "value": null},
               {"color": "yellow", "value": 1},
-              {"color": "red", "value": 3}
+              {"color": "red", "value": 5}
             ]
           }
         }
       }
     },
     {
-      "title": "Revenue Over Time",
+      "title": "TVS Over Time (USDC)",
       "type": "timeseries",
       "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
       "targets": [
         {
           "datasource": "${datasource}",
-          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, SUM((data->>'amount')::numeric) AS revenue FROM events WHERE event_type = 'BillingSessionCompleted' AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
+          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, COALESCE(SUM((data->>'amount_micro_usdc')::numeric) / 1000000, 0) AS tvs FROM events WHERE event_type IN ('PaymentVerified', 'BillingSessionSettled') AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
           "format": "time_series"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "wei",
+          "unit": "usd",
           "custom": {"lineInterpolation": "smooth"}
         }
       }
     },
     {
-      "title": "Active Agents Over Time",
+      "title": "Active GPU Leases Over Time",
       "type": "timeseries",
       "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
       "targets": [
         {
           "datasource": "${datasource}",
-          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, COUNT(DISTINCT aggregate_id) AS active_agents FROM events WHERE occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
+          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, COUNT(DISTINCT aggregate_id) AS active_leases FROM events WHERE event_type = 'BillingSessionStarted' AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
           "format": "time_series"
         }
       ],
@@ -190,63 +190,62 @@
       }
     },
     {
-      "title": "Resource Consumption by Type",
+      "title": "GPU Resource Consumption by Type",
       "type": "barchart",
       "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
       "targets": [
         {
           "datasource": "${datasource}",
-          "rawSql": "SELECT data->>'resource_type' AS resource_type, COUNT(*) AS count, SUM((data->>'amount')::numeric) AS total FROM events WHERE event_type = 'ResourceConsumed' AND occurred_at >= NOW() - INTERVAL '24 hours' GROUP BY resource_type ORDER BY total DESC",
+          "rawSql": "SELECT data->>'resource_type' AS resource_type, COUNT(*) AS count, SUM((data->>'amount')::numeric) AS total FROM events WHERE event_type IN ('ResourceConsumed', 'ResourceConsumedV2') AND occurred_at >= NOW() - INTERVAL '24 hours' GROUP BY resource_type ORDER BY total DESC",
           "format": "table"
         }
       ]
     },
     {
-      "title": "Top Agents by Revenue",
+      "title": "Top Agents by TVS Contribution",
       "type": "table",
       "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
       "targets": [
         {
           "datasource": "${datasource}",
-          "rawSql": "SELECT aggregate_id AS agent, COUNT(*) AS sessions, SUM((data->>'amount')::numeric) AS revenue, MAX(occurred_at) AS last_active FROM events WHERE event_type = 'BillingSessionCompleted' AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY aggregate_id ORDER BY revenue DESC LIMIT 20",
+          "rawSql": "SELECT aggregate_id AS agent, COUNT(*) AS leases, COALESCE(SUM((data->>'amount_micro_usdc')::numeric) / 1000000, SUM((data->>'amount')::numeric)) AS tvs, MAX(occurred_at) AS last_active FROM events WHERE event_type IN ('PaymentVerified', 'BillingSessionSettled') AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY aggregate_id ORDER BY tvs DESC LIMIT 20",
           "format": "table"
         }
       ]
     },
     {
-      "title": "Payment Success Rate Over Time",
+      "title": "Kill-Switch Events Over Time",
       "type": "timeseries",
       "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
       "targets": [
         {
           "datasource": "${datasource}",
-          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, ROUND(100.0 * COUNT(*) FILTER (WHERE event_type = 'PaymentVerified') / NULLIF(COUNT(*), 0), 2) AS success_rate FROM events WHERE event_type IN ('PaymentVerified', 'PaymentFailed') AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
+          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, COUNT(*) AS kill_switches FROM events WHERE data->>'kill_switch_triggered' = 'true' AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
           "format": "time_series"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
           "custom": {"lineInterpolation": "smooth"},
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "red", "value": null},
-              {"color": "yellow", "value": 95},
-              {"color": "green", "value": 99}
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
             ]
           }
         }
       }
     },
     {
-      "title": "Delegation Events",
+      "title": "DePIN Provider Distribution",
       "type": "timeseries",
       "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
       "targets": [
         {
           "datasource": "${datasource}",
-          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, COUNT(*) FILTER (WHERE event_type = 'AgentDelegated') AS delegations_created, COUNT(*) FILTER (WHERE event_type = 'AgentDelegationRevoked') AS delegations_revoked FROM events WHERE event_type IN ('AgentDelegated', 'AgentDelegationRevoked') AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
+          "rawSql": "SELECT DATE_TRUNC('hour', occurred_at) AS time, COUNT(*) FILTER (WHERE data->>'provider_id' LIKE '%io-net%') AS io_net, COUNT(*) FILTER (WHERE data->>'provider_id' LIKE '%render%') AS render, COUNT(*) FILTER (WHERE data->>'provider_id' LIKE '%akash%') AS akash FROM events WHERE event_type IN ('PaymentVerified', 'ResourceConsumedV2') AND occurred_at >= NOW() - INTERVAL '7 days' GROUP BY time ORDER BY time",
           "format": "time_series"
         }
       ],

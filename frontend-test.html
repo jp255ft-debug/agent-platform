@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Platform — Teste End-to-End</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.0/ethers.umd.min.js">
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #0d1117;
+            color: #e6edf3;
+            line-height: 1.6;
+        }
+        h1,
+        h2,
+        h3 {
+            color: #f0f6fc;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 6px;
+        }
+        button {
+            padding: 10px 22px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #238636;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            margin: 6px 4px;
+            transition: 0.2s;
+        }
+        button:hover {
+            background: #2ea043;
+            transform: scale(1.02);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        button.secondary {
+            background: #1f2937;
+            color: #c9d1d9;
+        }
+        button.secondary:hover {
+            background: #30363d;
+        }
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin: 8px 0;
+        }
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+        }
+        label {
+            font-weight: 500;
+            display: block;
+            margin-top: 8px;
+        }
+        input,
+        textarea {
+            background: #0d1117;
+            color: #e6edf3;
+            border: 1px solid #30363d;
+            padding: 8px 12px;
+            border-radius: 4px;
+            width: 100%;
+            max-width: 500px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        input[type="number"] {
+            max-width: 120px;
+        }
+        .status-box {
+            background: #1f2937;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #161b22;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+            border: 1px solid #30363d;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-success {
+            background: #238636;
+            color: white;
+        }
+        .badge-warning {
+            background: #d29922;
+            color: black;
+        }
+        .badge-error {
+            background: #da3633;
+            color: white;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 700px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🧪 Agent Platform — Teste End-to-End</h1>
+    <p><em>Fluxo: Criar Agente → Criar API Key → Listar GPUs → Solicitar Lease</em></p>
+
+    <div class="card">
+        <h3>🦊 MetaMask</h3>
+        <div class="row">
+            <button id="connectBtn">🔗 Conectar MetaMask</button>
+            <span style="margin-left: 12px; color: #8b949e;">ou</span>
+            <button id="manualModeBtn" class="secondary">✏️ Manual (sem MetaMask)</button>
+        </div>
+        <div id="metaMaskStatus" class="status-box">⏳ Aguardando conexão...</div>
+        <div id="manualInputArea" style="display:none; margin-top: 10px;">
+            <label>Seu Endereço Ethereum:</label>
+            <input id="manualAddressInput" type="text" placeholder="0x..." value="0xDF70Fd7b382743b82Bb9Bd373aAceD193992524D" />
+            <button id="setManualAddressBtn" class="secondary">✅ Usar este endereço</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>👤 Passo 2: Criar ou Buscar Agente</h3>
+        <p>Cria um novo agente ou recupera um existente pelo endereço Ethereum.</p>
+        <div class="row">
+            <div>
+                <label>Agent ID (opcional):</label>
+                <input id="agentIdInput" type="text" placeholder="Deixe vazio para auto-gerar" />
+            </div>
+            <div>
+                <label>Owner Address:</label>
+                <input id="ownerAddressInput" type="text" placeholder="0x..." style="max-width: 300px;" />
+            </div>
+        </div>
+        <div class="row">
+            <button id="createAgentBtn">👤 Criar Agente</button>
+            <button id="lookupAgentBtn" class="secondary">🔍 Buscar meu agente</button>
+        </div>
+        <div id="agentStatus" class="status-box">⏳ Aguardando criação...</div>
+    </div>
+
+    <div class="card">
+        <h3>🔑 Passo 3: Criar API Key</h3>
+        <p>Gera uma chave de API no formato <code>key_id.plain_key</code>. ⚠️ A chave é mostrada apenas uma vez!</p>
+        <div class="row">
+            <div>
+                <label>Expira em (dias):</label>
+                <input id="expiresInInput" type="number" value="90" />
+            </div>
+            <div>
+                <label>Label (opcional):</label>
+                <input id="keyLabelInput" type="text" placeholder="test-key" value="test-key" />
+            </div>
+        </div>
+        <button id="createKeyBtn">🔑 Criar API Key</button>
+        <div id="keyStatus" class="status-box">⏳ Crie o agente primeiro</div>
+    </div>
+
+    <div class="card">
+        <h3>🔒 Passo 4: Usar API Key (ou cole manualmente)</h3>
+        <p>Se você já tem uma API Key, cole aqui no formato <code>key_id.plain_key</code>.</p>
+        <div class="row">
+            <input id="apiKeyInput" type="text" placeholder="key_id.plain_key" style="max-width: 400px;" />
+            <button id="setKeyBtn">🔒 Usar esta chave</button>
+        </div>
+        <div id="keyUseStatus" class="status-box">⏳ Nenhuma chave configurada</div>
+    </div>
+
+    <div class="card">
+        <h3>🖥️ Passo 5: Listar GPUs Disponíveis (io.net)</h3>
+        <p>Consulta o hardware disponível na rede io.net para leasing.</p>
+        <button id="listGpuBtn">🖥️ Listar GPUs</button>
+        <div id="gpuListStatus" class="status-box">⏳ Configure a API Key primeiro</div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <h3>💻 Passo 6: Solicitar Lease de GPU</h3>
+            <p>Solicita uma GPU da io.net. A primeira GPU disponível será usada.</p>
+            <label>Duração (horas):</label>
+            <input id="durationInput" type="number" value="1" />
+            <label>Qtd GPUs:</label>
+            <input id="gpuCountInput" type="number" value="1" />
+            <label>Max Budget (USDC):</label>
+            <input id="budgetInput" type="number" value="2.0" step="0.1" />
+            <button id="leaseBtn">💻 Solicitar Lease</button>
+            <div id="leaseStatus" class="status-box">⏳ Liste as GPUs primeiro</div>
+        </div>
+
+        <div class="card">
+            <h3>📊 Passo 7: Consultar Status da Lease</h3>
+            <p>Verifica o status atual da sua lease de GPU.</p>
+            <button id="statusBtn">📊 Ver Status</button>
+            <div id="statusLeaseBox" class="status-box">⏳ Solicite uma lease primeiro</div>
+        </div>
+    </div>
+
+    <h3>📋 Logs</h3>
+    <pre id="output">Aguardando ações...</pre>
+
+    <script>
+        // ============================================================
+        // CONFIGURAÇÃO
+        // ============================================================
+        const API_BASE = 'http://localhost:8000/api/v1';
+
+        // ============================================================
+        // ESTADO
+        // ============================================================
+        let signer = null;
+        let address = '';
+        let agentId = '';
+        let apiKey = '';
+        let leaseId = '';
+        let manualMode = false;
+
+        // Elementos DOM
+        const output = document.getElementById('output');
+
+        function log(msg) {
+            output.textContent += '\n' + msg;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function updateStatus(elementId, msg, type = 'info') {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const colors = {
+                info: '#1f2937',
+                success: '#1a3a2a',
+                warning: '#3d2e1a',
+                error: '#3d1a1a'
+            };
+            el.style.background = colors[type] || colors.info;
+            el.textContent = msg;
+        }
+
+        // ============================================================
+        // MODO MANUAL
+        // ============================================================
+        document.getElementById('manualModeBtn').onclick = function() {
+            manualMode = true;
+            document.getElementById('manualInputArea').style.display = 'block';
+            updateStatus('metaMaskStatus', '✏️ Modo manual ativado. Insira seu endereço.', 'warning');
+            // Preenche automaticamente
+            const addr = document.getElementById('manualAddressInput').value.trim();
+            if (addr) {
+                document.getElementById('ownerAddressInput').value = addr;
+                address = addr;
+                updateStatus('metaMaskStatus', '✅ Endereço configurado manualmente: ' + addr.slice(0, 10) + '...', 'success');
+            }
+        };
+
+        document.getElementById('setManualAddressBtn').onclick = function() {
+            const addr = document.getElementById('manualAddressInput').value.trim();
+            if (addr && addr.startsWith('0x')) {
+                document.getElementById('ownerAddressInput').value = addr;
+                address = addr;
+                updateStatus('metaMaskStatus', '✅ Endereço configurado: ' + addr.slice(0, 10) + '...', 'success');
+                log('📍 Endereço manual definido: ' + addr);
+            } else {
+                alert('Endereço inválido. Deve começar com 0x e ter 42 caracteres.');
+            }
+        };
+
+        // ============================================================
+        // META MASK
+        // ============================================================
+        document.getElementById('connectBtn').onclick = async function() {
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    updateStatus('metaMaskStatus', '❌ MetaMask não encontrada! Use o modo manual.', 'error');
+                    log('❌ MetaMask não detectada.');
+                    return;
+                }
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                await provider.send('eth_requestAccounts', []);
+                signer = await provider.getSigner();
+                address = await signer.getAddress();
+                document.getElementById('ownerAddressInput').value = address;
+                updateStatus('metaMaskStatus', '✅ Conectado: ' + address.slice(0, 10) + '...', 'success');
+                log('🔗 MetaMask conectada: ' + address);
+                manualMode = false;
+            } catch (err) {
+                updateStatus('metaMaskStatus', '❌ Erro: ' + err.message, 'error');
+                log('❌ Erro MetaMask: ' + err.message);
+            }
+        };
+
+        // ============================================================
+        // CRIAR AGENTE (com auto-geração de ID)
+        // ============================================================
+        document.getElementById('createAgentBtn').onclick = async function() {
+            const ownerAddr = document.getElementById('ownerAddressInput').value.trim();
+            if (!ownerAddr || !ownerAddr.startsWith('0x')) {
+                updateStatus('agentStatus', '❌ Configure o endereço primeiro (MetaMask ou manual).', 'error');
+                return;
+            }
+
+            try {
+                updateStatus('agentStatus', '⏳ Criando agente...', 'info');
+                // Auto-gera agent_id se vazio
+                let agentIdInput = document.getElementById('agentIdInput').value.trim();
+                if (!agentIdInput) {
+                    agentIdInput = 'agent_' + Math.random().toString(36).substring(2, 10);
+                    document.getElementById('agentIdInput').value = agentIdInput;
+                    log('🔧 Agent ID auto-gerado: ' + agentIdInput);
+                }
+
+                const response = await fetch(`${API_BASE}/agents`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        agent_id: agentIdInput,
+                        owner_address: ownerAddr,
+                        delegation_address: ''
+                    })
+                });
+
+                if (!response.ok) {
+                    const errBody = await response.json();
+                    // Trata erro 409 — agente já existe
+                    if (response.status === 409) {
+                        const errDetail = errBody.detail || {};
+                        const existingAgentId = errDetail?.details?.agent_id;
+                        if (existingAgentId && existingAgentId !== '') {
+                            agentId = existingAgentId;
+                            document.getElementById('agentIdInput').value = existingAgentId;
+                            updateStatus('agentStatus', '⚠️ Agente já existe! ID recuperado: ' + existingAgentId, 'warning');
+                            log('⚠️ Agente já existe. Usando ID existente: ' + existingAgentId);
+                            document.getElementById('keyStatus').textContent = '⏳ Agora crie a API Key';
+                            document.getElementById('keyStatus').style.background = '#1f2937';
+                            return;
+                        }
+                        // Se o ID veio vazio, sugere usar o botão de busca
+                        updateStatus('agentStatus', '⚠️ Agente já existe (ID vazio). Use "🔍 Buscar meu agente" para encontrá-lo.', 'warning');
+                        log('⚠️ Agente já existe com ID vazio. Use o botão de busca.');
+                        return;
+                    }
+                    throw new Error(errBody.detail || JSON.stringify(errBody));
+                }
+
+                const data = await response.json();
+                agentId = data.agent_id;
+                updateStatus('agentStatus', '✅ Agente criado: ' + agentId, 'success');
+                log('👤 Agente criado: ' + agentId);
+                document.getElementById('keyStatus').textContent = '⏳ Agora crie a API Key';
+                document.getElementById('keyStatus').style.background = '#1f2937';
+            } catch (err) {
+                updateStatus('agentStatus', '❌ Erro: ' + err.message, 'error');
+                log('❌ Erro ao criar agente: ' + err.message);
+            }
+        };
+
+        // ============================================================
+        // BUSCAR AGENTE POR ENDEREÇO (via GET /agents?owner_address=)
+        // ============================================================
+        document.getElementById('lookupAgentBtn').onclick = async function() {
+            const ownerAddr = document.getElementById('ownerAddressInput').value.trim();
+            if (!ownerAddr || !ownerAddr.startsWith('0x')) {
+                updateStatus('agentStatus', '❌ Configure o endereço primeiro.', 'error');
+                return;
+            }
+
+            updateStatus('agentStatus', '⏳ Buscando agente por endereço...', 'info');
+            log('🔍 Buscando agente para endereço: ' + ownerAddr.slice(0, 10) + '...');
+
+            try {
+                const response = await fetch(`${API_BASE}/agents?owner_address=${encodeURIComponent(ownerAddr)}`);
+                if (!response.ok) {
+                    throw new Error('Erro na consulta: ' + response.status);
+                }
+
+                const agents = await response.json();
+                if (agents.length === 0) {
+                    updateStatus('agentStatus', '❌ Nenhum agente encontrado para este endereço. Crie um novo.', 'error');
+                    log('❌ Nenhum agente encontrado para: ' + ownerAddr.slice(0, 10) + '...');
+                    return;
+                }
+
+                // Pega o primeiro agente encontrado
+                const found = agents[0];
+                agentId = found.agent_id;
+                document.getElementById('agentIdInput').value = found.agent_id;
+                updateStatus('agentStatus', '✅ Agente encontrado: ' + found.agent_id, 'success');
+                log('✅ Agente encontrado via lookup: ' + found.agent_id);
+                document.getElementById('keyStatus').textContent = '⏳ Agora crie a API Key';
+                document.getElementById('keyStatus').style.background = '#1f2937';
+            } catch (err) {
+                updateStatus('agentStatus', '❌ Erro na busca: ' + err.message, 'error');
+                log('❌ Erro ao buscar agente: ' + err.message);
+            }
+        };
+
+        // ============================================================
+        // CRIAR API KEY (com bootstrap)
+        // ============================================================
+        document.getElementById('createKeyBtn').onclick = async function() {
+            // Permite usar agent_id digitado manualmente no campo
+            const manualAgentId = document.getElementById('agentIdInput').value.trim();
+            const effectiveAgentId = agentId || manualAgentId;
+            if (!effectiveAgentId) {
+                updateStatus('keyStatus', '❌ Crie ou informe o Agent ID primeiro.', 'error');
+                return;
+            }
+            // Se o usuário digitou manualmente, usa esse ID
+            if (manualAgentId && !agentId) {
+                agentId = manualAgentId;
+            }
+
+            try {
+                updateStatus('keyStatus', '⏳ Criando API Key...', 'info');
+                const expiresIn = parseInt(document.getElementById('expiresInInput').value) || 90;
+                const label = document.getElementById('keyLabelInput').value.trim() || 'test-key';
+
+                const response = await fetch(`${API_BASE}/agents/${agentId}/api-keys`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Bootstrap-Key': 'true' // <- Bootstrap em dev
+                    },
+                    body: JSON.stringify({
+                        expires_in_days: expiresIn,
+                        label: label
+                    })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || JSON.stringify(err));
+                }
+
+                const data = await response.json();
+                const plainKey = data.plain_key;
+                apiKey = data.key_id + '.' + plainKey;
+                document.getElementById('apiKeyInput').value = data.key_id + '.' + plainKey;
+
+                updateStatus('keyStatus', '✅ API Key criada: ' + plainKey.slice(0, 20) + '...', 'success');
+                log('🔑 API Key criada: ' + plainKey);
+                log('⚠️ Salve esta chave! Ela não será mostrada novamente.');
+
+                // Atualiza status de uso
+                document.getElementById('keyUseStatus').textContent = '✅ Chave configurada: ' + plainKey.slice(0, 16) + '...';
+                document.getElementById('keyUseStatus').style.background = '#1a3a2a';
+                document.getElementById('gpuListStatus').textContent = '⏳ Agora liste as GPUs';
+                document.getElementById('gpuListStatus').style.background = '#1f2937';
+            } catch (err) {
+                updateStatus('keyStatus', '❌ Erro: ' + err.message, 'error');
+                log('❌ Erro ao criar API Key: ' + err.message);
+            }
+        };
+
+        // ============================================================
+        // USAR API KEY MANUAL
+        // ============================================================
+        document.getElementById('setKeyBtn').onclick = function() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (!key) {
+                alert('Cole a chave no campo.');
+                return;
+            }
+            apiKey = key;
+            document.getElementById('keyUseStatus').textContent = '✅ Chave configurada: ' + key.slice(0, 16) + '...';
+            document.getElementById('keyUseStatus').style.background = '#1a3a2a';
+            document.getElementById('gpuListStatus').textContent = '⏳ Agora liste as GPUs';
+            document.getElementById('gpuListStatus').style.background = '#1f2937';
+            log('🔒 Chave definida manualmente.');
+        };
+
+        // ============================================================
+        // LISTAR GPUs
+        // ============================================================
+        document.getElementById('listGpuBtn').onclick = async function() {
+            if (!apiKey) {
+                updateStatus('gpuListStatus', '❌ Configure a API Key primeiro.', 'error');
+                return;
+            }
+
+            try {
+                updateStatus('gpuListStatus', '⏳ Buscando GPUs...', 'info');
+                log('🔄 Solicitando lista de GPUs...');
+
+                const response = await fetch(`${API_BASE}/gpu/hardware`, {
+                    headers: { 'X-API-Key': apiKey }
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || JSON.stringify(err));
+                }
+
+                const gpus = await response.json();
+
+                // Mostra resumo
+                const summary = gpus.slice(0, 5).map(g =>
+                    `${g.model} - ${g.price_per_hour_usdc} USDC/h - ${g.vram_gb}GB VRAM (${g.location})`
+                ).join('\n');
+
+                const total = gpus.length;
+                updateStatus('gpuListStatus', `✅ ${total} GPUs encontradas.`, 'success');
+                log(`🖥️ GPUs disponíveis: ${total}`);
+                log(summary);
+                if (total > 5) log(`... e mais ${total - 5}`);
+
+                // Guarda a primeira para lease
+                window._gpuList = gpus;
+                document.getElementById('leaseStatus').textContent = '⏳ Pronto para solicitar lease.';
+                document.getElementById('leaseStatus').style.background = '#1f2937';
+            } catch (err) {
+                updateStatus('gpuListStatus', '❌ Erro: ' + err.message, 'error');
+                log('❌ Erro ao listar GPUs: ' + err.message);
+            }
+        };
+
+        // ============================================================
+        // SOLICITAR LEASE
+        // ============================================================
+        document.getElementById('leaseBtn').onclick = async function() {
+            if (!apiKey) {
+                updateStatus('leaseStatus', '❌ Configure a API Key.', 'error');
+                return;
+            }
+
+            const gpus = window._gpuList || [];
+            if (gpus.length === 0) {
+                updateStatus('leaseStatus', '❌ Liste as GPUs primeiro.', 'error');
+                return;
+            }
+
+            const firstGpu = gpus[0];
+            const duration = parseInt(document.getElementById('durationInput').value) || 1;
+            const count = parseInt(document.getElementById('gpuCountInput').value) || 1;
+            const budget = parseFloat(document.getElementById('budgetInput').value) || 2.0;
+
+            try {
+                updateStatus('leaseStatus', '⏳ Solicitando lease...', 'info');
+                log('💻 Solicitando lease para: ' + firstGpu.model);
+
+                const response = await fetch(`${API_BASE}/gpu/lease`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                    },
+                    body: JSON.stringify({
+                        hardware_id: firstGpu.id,
+                        duration_hours: duration,
+                        gpu_count: count,
+                        max_budget_usdc: budget
+                    })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || JSON.stringify(err));
+                }
+
+                const data = await response.json();
+                leaseId = data.lease_id;
+
+                updateStatus('leaseStatus', `✅ Lease solicitada: ${leaseId}`, 'success');
+                log(`✅ Lease criada: ${leaseId}`);
+                log(`   Status: ${data.status}`);
+                log(`   Custo: ${data.total_cost_usdc} USDC`);
+                log(`   Expira em: ${data.expires_at}`);
+
+                document.getElementById('statusLeaseBox').textContent = '⏳ Lease criada. Clique em "Ver Status" para acompanhar.';
+                document.getElementById('statusLeaseBox').style.background = '#1f2937';
+            } catch (err) {
+                updateStatus('leaseStatus', '❌ Erro: ' + err.message, 'error');
+                log('❌ Erro na lease: ' + err.message);
+            }
+        };
+
+        // ============================================================
+        // CONSULTAR STATUS
+        // ============================================================
+        document.getElementById('statusBtn').onclick = async function() {
+            if (!leaseId) {
+                updateStatus('statusLeaseBox', '❌ Nenhuma lease ativa.', 'error');
+                return;
+            }
+            if (!apiKey) {
+                updateStatus('statusLeaseBox', '❌ API Key não configurada.', 'error');
+                return;
+            }
+
+            try {
+                updateStatus('statusLeaseBox', '⏳ Buscando status...', 'info');
+                const response = await fetch(`${API_BASE}/gpu/leases/${leaseId}`, {
+                    headers: { 'X-API-Key': apiKey }
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || JSON.stringify(err));
+                }
+
+                const data = await response.json();
+
+                const info = [
+                    `ID: ${data.lease_id}`,
+                    `Status: ${data.status}`,
+                    `GPU: ${data.gpu_model} (${data.gpu_count}x)`,
+                    `Duração: ${data.duration_hours}h`,
+                    `Custo total: ${data.total_cost_usdc} USDC`,
+                    `Restam: ${data.remaining_hours}h`,
+                    `Ativo: ${data.is_active ? '✅ Sim' : '❌ Não'}`,
+                    `Criado: ${data.created_at}`,
+                    `Expira: ${data.expires_at || 'N/A'}`
+                ];
+
+                updateStatus('statusLeaseBox', `✅ Status: ${data.status}`, 'success');
+                log('📊 Status da lease:');
+                info.forEach(line => log('   ' + line));
+            } catch (err) {
+                updateStatus('statusLeaseBox', '❌ Erro: ' + err.message, 'error');
+                log('❌ Erro ao consultar status: ' + err.message);
+            }
+        };
+
+        // ============================================================
+        // INICIALIZAÇÃO
+        // ============================================================
+        log('🚀 Agent Platform - Frontend de Teste Inicializado');
+        log('ℹ️ API Base: ' + API_BASE);
+        log('ℹ️ Modo: Simulador io.net (IO_NET_SIMULATOR=true)');
+        log('🔄 Aguardando ações...');
+    </script>
+
+</body>
+</html>

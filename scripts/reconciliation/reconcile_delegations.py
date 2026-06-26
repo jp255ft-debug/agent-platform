@@ -101,7 +101,7 @@ class DelegationReconciliationReport:
 class BlockchainDelegationReader:
     """Reads delegation events from the AgentDelegation contract."""
 
-    DELEGATION_CREATED_SIG = "DelegationCreated(address,address,uint256,uint256)"
+    DELEGATION_CREATED_SIG = "DelegationCreated(address,address,uint256,uint256,uint256)"
     DELEGATION_REVOKED_SIG = "DelegationRevoked(address,address)"
 
     def __init__(self, rpc_url: str, contract_address: Optional[str] = None):
@@ -135,8 +135,10 @@ class BlockchainDelegationReader:
             for log in created_logs:
                 agent = Web3.to_checksum_address("0x" + log["topics"][1].hex()[-40:])
                 delegate = Web3.to_checksum_address("0x" + log["topics"][2].hex()[-40:])
-                decoded = self._w3.codec.decode(["uint256", "uint256"], log["data"])
+                decoded = self._w3.codec.decode(["uint256", "uint256", "uint256"], log["data"])
                 expires_at = decoded[0]
+                max_budget = decoded[1]
+                nonce = decoded[2]
 
                 delegations[agent.lower()] = OnChainDelegation(
                     agent=agent,

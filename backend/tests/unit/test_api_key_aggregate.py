@@ -13,15 +13,15 @@ from app.domain.events.api_key_events import (
 
 
 class TestAPIKeyAggregateCreate:
-    """Tests for APIKeyAggregate.create() factory."""
+    """Tests for APIKeyAggregate.create() method."""
+
+    def _make_aggregate(self, agent_id="agent-123", key_id="key-001", key_hash="hash", expires_in_days=90):
+        aggregate = APIKeyAggregate(agent_id=agent_id)
+        aggregate.create(key_id=key_id, key_hash=key_hash, expires_in_days=expires_in_days)
+        return aggregate
 
     def test_create_returns_aggregate_with_one_key(self):
-        aggregate = APIKeyAggregate.create(
-            agent_id="agent-123",
-            key_id="key-001",
-            key_hash="hashed_value",
-            expires_in_days=90,
-        )
+        aggregate = self._make_aggregate(key_hash="hashed_value")
         assert aggregate.agent_id == "agent-123"
         assert len(aggregate.keys) == 1
         assert aggregate.keys[0].key_id == "key-001"
@@ -30,21 +30,12 @@ class TestAPIKeyAggregateCreate:
         assert not aggregate.keys[0].expired
 
     def test_create_sets_expiration_correctly(self):
-        aggregate = APIKeyAggregate.create(
-            agent_id="agent-123",
-            key_id="key-001",
-            key_hash="hash",
-            expires_in_days=30,
-        )
+        aggregate = self._make_aggregate(expires_in_days=30)
         expected = datetime.now(timezone.utc) + timedelta(days=30)
         assert aggregate.keys[0].expires_at.date() == expected.date()
 
     def test_create_generates_api_key_created_event(self):
-        aggregate = APIKeyAggregate.create(
-            agent_id="agent-123",
-            key_id="key-001",
-            key_hash="hash",
-        )
+        aggregate = self._make_aggregate()
         changes = aggregate.get_changes()
         assert len(changes) == 1
         assert isinstance(changes[0], APIKeyCreated)
@@ -52,11 +43,7 @@ class TestAPIKeyAggregateCreate:
         assert changes[0].data["key_id"] == "key-001"
 
     def test_create_default_expires_in_90_days(self):
-        aggregate = APIKeyAggregate.create(
-            agent_id="agent-123",
-            key_id="key-001",
-            key_hash="hash",
-        )
+        aggregate = self._make_aggregate()
         expected = datetime.now(timezone.utc) + timedelta(days=90)
         assert aggregate.keys[0].expires_at.date() == expected.date()
 
@@ -64,14 +51,19 @@ class TestAPIKeyAggregateCreate:
 class TestAPIKeyAggregateRevoke:
     """Tests for APIKeyAggregate.revoke_key()."""
 
+    def _make_aggregate(self):
+        aggregate = APIKeyAggregate(agent_id="agent-123")
+        aggregate.create(key_id="key-001", key_hash="hash")
+        return aggregate
+
     def test_revoke_key_marks_key_as_revoked(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash")
+        aggregate = self._make_aggregate()
         aggregate.revoke_key("key-001", reason="compromised")
         assert aggregate.keys[0].revoked is True
         assert aggregate.keys[0].revoked_at is not None
 
     def test_revoke_key_generates_api_key_revoked_event(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash")
+        aggregate = self._make_aggregate()
         aggregate.get_changes()  # clear create event
         aggregate.revoke_key("key-001", reason="compromised")
         changes = aggregate.get_changes()
@@ -80,7 +72,7 @@ class TestAPIKeyAggregateRevoke:
         assert changes[0].data["reason"] == "compromised"
 
     def test_revoke_key_default_reason_is_manual(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash")
+        aggregate = self._make_aggregate()
         aggregate.get_changes()
         aggregate.revoke_key("key-001")
         changes = aggregate.get_changes()
@@ -90,8 +82,13 @@ class TestAPIKeyAggregateRevoke:
 class TestAPIKeyAggregateRotate:
     """Tests for APIKeyAggregate.rotate_key()."""
 
+    def _make_aggregate(self):
+        aggregate = APIKeyAggregate(agent_id="agent-123")
+        aggregate.create(key_id="key-001", key_hash="hash_old")
+        return aggregate
+
     def test_rotate_key_revokes_old_and_creates_new(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash_old")
+        aggregate = self._make_aggregate()
         aggregate.get_changes()
         aggregate.rotate_key("key-001", "key-002", "hash_new", expires_in_days=90)
         assert aggregate.keys[0].revoked is True  # old key revoked
@@ -100,7 +97,7 @@ class TestAPIKeyAggregateRotate:
         assert not aggregate.keys[1].revoked
 
     def test_rotate_key_generates_two_events(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash_old")
+        aggregate = self._make_aggregate()
         aggregate.get_changes()
         aggregate.rotate_key("key-001", "key-002", "hash_new")
         changes = aggregate.get_changes()
@@ -113,8 +110,13 @@ class TestAPIKeyAggregateRotate:
 class TestAPIKeyAggregateExpire:
     """Tests for APIKeyAggregate.expire_keys()."""
 
+    def _make_aggregate(self):
+        aggregate = APIKeyAggregate(agent_id="agent-123")
+        aggregate.create(key_id="key-001", key_hash="hash")
+        return aggregate
+
     def test_expire_keys_marks_expired_keys(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash")
+        aggregate = self._make_aggregate()
         # Manually set expiration in the past
         aggregate.keys[0].expires_at = datetime.now(timezone.utc) - timedelta(days=1)
         aggregate.get_changes()
@@ -122,13 +124,13 @@ class TestAPIKeyAggregateExpire:
         assert aggregate.keys[0].expired is True
 
     def test_expire_keys_does_not_affect_valid_keys(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash")
+        aggregate = self._make_aggregate()
         aggregate.get_changes()
         aggregate.expire_keys()
         assert not aggregate.keys[0].expired
 
     def test_expire_keys_generates_api_key_expired_event(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash")
+        aggregate = self._make_aggregate()
         aggregate.keys[0].expires_at = datetime.now(timezone.utc) - timedelta(days=1)
         aggregate.get_changes()
         aggregate.expire_keys()
@@ -140,27 +142,32 @@ class TestAPIKeyAggregateExpire:
 class TestAPIKeyAggregateValidation:
     """Tests for APIKeyAggregate.is_valid()."""
 
+    def _make_aggregate(self):
+        aggregate = APIKeyAggregate(agent_id="agent-123")
+        aggregate.create(key_id="key-001", key_hash="hash_valid")
+        return aggregate
+
     def test_valid_key_returns_true(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash_valid")
+        aggregate = self._make_aggregate()
         assert aggregate.is_valid("hash_valid") is True
 
     def test_revoked_key_returns_false(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash_valid")
+        aggregate = self._make_aggregate()
         aggregate.revoke_key("key-001")
         assert aggregate.is_valid("hash_valid") is False
 
     def test_expired_key_returns_false(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash_valid")
+        aggregate = self._make_aggregate()
         aggregate.keys[0].expires_at = datetime.now(timezone.utc) - timedelta(days=1)
         aggregate.expire_keys()
         assert aggregate.is_valid("hash_valid") is False
 
     def test_unknown_hash_returns_false(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash_valid")
+        aggregate = self._make_aggregate()
         assert aggregate.is_valid("unknown_hash") is False
 
     def test_multiple_keys_only_valid_one_returns_true(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash_old")
+        aggregate = self._make_aggregate()
         aggregate.get_changes()
         aggregate.rotate_key("key-001", "key-002", "hash_new")
         assert aggregate.is_valid("hash_new") is True
@@ -170,8 +177,13 @@ class TestAPIKeyAggregateValidation:
 class TestAPIKeyAggregateActiveKeys:
     """Tests for APIKeyAggregate.active_keys()."""
 
+    def _make_aggregate(self):
+        aggregate = APIKeyAggregate(agent_id="agent-123")
+        aggregate.create(key_id="key-001", key_hash="hash_1")
+        return aggregate
+
     def test_active_keys_returns_only_valid_keys(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash_1")
+        aggregate = self._make_aggregate()
         aggregate.get_changes()
         aggregate.rotate_key("key-001", "key-002", "hash_2")
         active = aggregate.active_keys()
@@ -179,7 +191,7 @@ class TestAPIKeyAggregateActiveKeys:
         assert active[0].key_id == "key-002"
 
     def test_active_keys_empty_when_all_revoked(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash")
+        aggregate = self._make_aggregate()
         aggregate.revoke_key("key-001")
         assert len(aggregate.active_keys()) == 0
 
@@ -187,8 +199,13 @@ class TestAPIKeyAggregateActiveKeys:
 class TestAPIKeyAggregateRecordUsage:
     """Tests for APIKeyAggregate.record_usage()."""
 
+    def _make_aggregate(self):
+        aggregate = APIKeyAggregate(agent_id="agent-123")
+        aggregate.create(key_id="key-001", key_hash="hash")
+        return aggregate
+
     def test_record_usage_adds_event(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash")
+        aggregate = self._make_aggregate()
         aggregate.get_changes()
         aggregate.record_usage("key-001", ip_address="192.168.1.1")
         changes = aggregate.get_changes()
@@ -198,7 +215,7 @@ class TestAPIKeyAggregateRecordUsage:
         assert changes[0].data["ip_address"] == "192.168.1.1"
 
     def test_record_usage_default_ip(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash")
+        aggregate = self._make_aggregate()
         aggregate.get_changes()
         aggregate.record_usage("key-001")
         changes = aggregate.get_changes()
@@ -231,7 +248,8 @@ class TestAPIKeyAggregateEventSourcing:
         assert aggregate.version == 2
 
     def test_get_changes_clears_list(self):
-        aggregate = APIKeyAggregate.create("agent-123", "key-001", "hash")
+        aggregate = APIKeyAggregate(agent_id="agent-123")
+        aggregate.create(key_id="key-001", key_hash="hash")
         changes = aggregate.get_changes()
         assert len(changes) == 1
         assert aggregate.get_changes() == []  # empty after clear

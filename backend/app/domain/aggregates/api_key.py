@@ -23,13 +23,11 @@ class APIKeyAggregate:
     version: int = 0
     _changes: List[DomainEvent] = field(default_factory=list, repr=False)
 
-    @staticmethod
-    def create(agent_id: str, key_id: str, key_hash: str, expires_in_days: int = 90) -> "APIKeyAggregate":
-        """Factory: creates a new API key for an agent."""
-        aggregate = APIKeyAggregate(agent_id=agent_id)
+    def create(self, key_id: str, key_hash: str, expires_in_days: int = 90) -> "APIKeyAggregate":
+        """Creates a new API key for this agent."""
         expires_at = datetime.now(timezone.utc) + timedelta(days=expires_in_days)
         event = APIKeyCreated(
-            aggregate_id=agent_id,
+            aggregate_id=self.agent_id,
             data={
                 "key_id": key_id,
                 "key_hash": key_hash,
@@ -37,9 +35,9 @@ class APIKeyAggregate:
                 "created_at": datetime.now(timezone.utc).isoformat(),
             },
         )
-        aggregate._apply(event)
-        aggregate._changes.append(event)
-        return aggregate
+        self._apply(event)
+        self._changes.append(event)
+        return self
 
     def revoke_key(self, key_id: str, reason: str = "manual") -> None:
         """Revoke an API key."""
@@ -91,6 +89,7 @@ class APIKeyAggregate:
                 "ip_address": ip_address or "unknown",
             },
         )
+        self._apply(event)
         self._changes.append(event)
 
     def _apply(self, event: DomainEvent) -> None:
@@ -114,6 +113,12 @@ class APIKeyAggregate:
             for key in self.keys:
                 if key.key_id == event.data["key_id"]:
                     key.expired = True
+                    break
+        elif isinstance(event, APIKeyUsed):
+            for key in self.keys:
+                if key.key_id == event.data["key_id"]:
+                    key.last_used_at = datetime.fromisoformat(event.data["used_at"])
+                    key.usage_count += 1
                     break
         self.version += 1
 
@@ -148,3 +153,5 @@ class APIKey:
     revoked: bool = False
     revoked_at: Optional[datetime] = None
     expired: bool = False
+    last_used_at: Optional[datetime] = None
+    usage_count: int = 0
