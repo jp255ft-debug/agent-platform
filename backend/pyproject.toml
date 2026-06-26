@@ -48,7 +48,7 @@ filterwarnings = [
     "ignore::DeprecationWarning:websockets",
     "ignore::pydantic.warnings.PydanticDeprecatedSince20",
 ]
-addopts = "-v --cov=app --cov-report=term-missing --cov-report=html --cov-fail-under=30"
+addopts = "-p no:web3.tools.pytest_ethereum -v --cov=app --cov-report=term-missing --cov-report=html --cov-fail-under=30"
 
 [tool.coverage.run]
 source = ["app"]
