@@ -1,7 +1,6 @@
 """Kafka event consumer for processing domain events."""
 import json
 from collections.abc import Callable, Coroutine
-from typing import Optional
 
 from aiokafka import AIOKafkaConsumer
 
@@ -14,7 +13,7 @@ class KafkaEventConsumer:
 
     def __init__(self, topics: list[str]):
         self._topics = topics
-        self._consumer: Optional[AIOKafkaConsumer] = None
+        self._consumer: AIOKafkaConsumer | None = None
         self._handlers: dict[str, list[Callable[[DomainEvent], Coroutine]]] = {}
 
     async def start(self) -> None:

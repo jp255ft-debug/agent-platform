@@ -12,7 +12,6 @@ Integrates with:
 from __future__ import annotations
 
 import secrets
-from typing import Optional
 
 import bcrypt
 from fastapi import Depends, Request
@@ -60,9 +59,9 @@ async def get_api_key_repository(
 
 async def validate_api_key(
     request: Request,
-    api_key_header: Optional[str] = None,
+    api_key_header: str | None = None,
     repo: APIKeyRepository = Depends(get_api_key_repository),
-) -> Optional[str]:
+) -> str | None:
     """
     Dependency: validates X-API-Key header and returns agent_id.
 
@@ -118,6 +117,6 @@ async def validate_api_key(
     return agent_id
 
 
-async def get_current_agent(agent_id: Optional[str] = Depends(validate_api_key)) -> Optional[str]:
+async def get_current_agent(agent_id: str | None = Depends(validate_api_key)) -> str | None:
     """Simple alias: returns agent_id of authenticated agent."""
     return agent_id

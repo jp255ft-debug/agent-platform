@@ -43,7 +43,7 @@ Estrutura:
         └── MessagingError
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class AgentPlatformError(Exception):
@@ -58,11 +58,11 @@ class AgentPlatformError(Exception):
 
     def __init__(
         self,
-        message: Optional[str] = None,
+        message: str | None = None,
         *,
-        code: Optional[str] = None,
-        http_status: Optional[int] = None,
-        details: Optional[dict[str, Any]] = None,
+        code: str | None = None,
+        http_status: int | None = None,
+        details: dict[str, Any] | None = None,
     ):
         if code:
             self.code = code
@@ -230,7 +230,7 @@ class ValidationError(AgentPlatformError):
     code = "VALIDATION_ERROR"
     http_status = 422
 
-    def __init__(self, message: str, *, field: Optional[str] = None):
+    def __init__(self, message: str, *, field: str | None = None):
         details = {}
         if field:
             details["field"] = field
@@ -302,7 +302,7 @@ class PaymentVerificationError(PaymentError):
 
     code = "PAYMENT_VERIFICATION_FAILED"
 
-    def __init__(self, reason: str, tx_hash: Optional[str] = None):
+    def __init__(self, reason: str, tx_hash: str | None = None):
         details = {"reason": reason}
         if tx_hash:
             details["tx_hash"] = tx_hash
@@ -315,7 +315,7 @@ class PixError(PaymentError):
     code = "PIX_ERROR"
     http_status = 502
 
-    def __init__(self, message: str, *, upstream_status: Optional[int] = None):
+    def __init__(self, message: str, *, upstream_status: int | None = None):
         details = {}
         if upstream_status:
             details["upstream_status"] = upstream_status
@@ -337,7 +337,7 @@ class DelegationError(BlockchainError):
 
     code = "DELEGATION_ERROR"
 
-    def __init__(self, message: str, *, agent_address: Optional[str] = None):
+    def __init__(self, message: str, *, agent_address: str | None = None):
         details = {}
         if agent_address:
             details["agent_address"] = agent_address

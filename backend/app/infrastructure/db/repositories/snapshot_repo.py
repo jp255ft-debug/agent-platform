@@ -1,6 +1,5 @@
 """PostgreSQL snapshot repository implementation."""
 import json
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,7 +34,7 @@ class PostgresSnapshotRepository(SnapshotRepository):
             "version": version,
         })
 
-    async def load_snapshot(self, aggregate_id: str) -> Optional[dict]:
+    async def load_snapshot(self, aggregate_id: str) -> dict | None:
         """Load the latest snapshot for an aggregate."""
         query = text("""
             SELECT data, version FROM snapshots

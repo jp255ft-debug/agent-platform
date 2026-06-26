@@ -1,7 +1,6 @@
 """Kafka event producer for publishing domain events."""
 import json
 import logging
-from typing import Optional
 
 from aiokafka import AIOKafkaProducer
 
@@ -15,7 +14,7 @@ class KafkaEventProducer:
     """Publishes domain events to Kafka topics."""
 
     def __init__(self):
-        self._producer: Optional[AIOKafkaProducer] = None
+        self._producer: AIOKafkaProducer | None = None
 
     async def start(self) -> None:
         """Initialize the Kafka producer."""
@@ -31,7 +30,7 @@ class KafkaEventProducer:
         if self._producer:
             await self._producer.stop()
 
-    async def publish_event(self, event: DomainEvent, topic: Optional[str] = None) -> None:
+    async def publish_event(self, event: DomainEvent, topic: str | None = None) -> None:
         """Publish a domain event to a Kafka topic.
 
         Uses aggregate_id as the partition key to guarantee event ordering
@@ -58,7 +57,7 @@ class KafkaEventProducer:
             key=event.aggregate_id.encode("utf-8"),
         )
 
-    async def publish_events(self, events: list[DomainEvent], topic: Optional[str] = None) -> None:
+    async def publish_events(self, events: list[DomainEvent], topic: str | None = None) -> None:
         """Publish multiple domain events.
 
         All events are published with aggregate_id as partition key,

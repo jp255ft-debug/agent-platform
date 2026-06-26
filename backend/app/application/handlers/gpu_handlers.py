@@ -1,7 +1,6 @@
 """GPU leasing command handlers."""
 import uuid
 from datetime import UTC, datetime
-from typing import Optional
 
 from app.application.commands.lease_gpu import (
     ExtendLeaseCommand,
@@ -34,9 +33,9 @@ class GPUHandlers:
 
     async def list_available_gpus(
         self,
-        search: Optional[str] = None,
-        min_vram: Optional[int] = None,
-        max_price: Optional[float] = None,
+        search: str | None = None,
+        min_vram: int | None = None,
+        max_price: float | None = None,
     ) -> list[dict]:
         """List available GPUs with optional filters."""
         hw_filter = HardwareFilter(search=search, min_gpu_memory=min_vram)

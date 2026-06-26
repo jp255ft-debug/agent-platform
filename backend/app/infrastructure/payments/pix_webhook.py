@@ -8,7 +8,6 @@ Validates HMAC signatures and creates domain events in the Event Store.
 import hashlib
 import hmac
 import logging
-from typing import Optional
 
 from app.core.config import settings
 from app.domain.events.payment_events import PixPaymentReceived
@@ -23,7 +22,7 @@ class PixWebhookHandler:
     X-Signature header against the webhook secret configured in Stark Bank.
     """
 
-    def __init__(self, webhook_secret: Optional[str] = None):
+    def __init__(self, webhook_secret: str | None = None):
         """Initialize webhook handler.
 
         Args:
@@ -60,7 +59,7 @@ class PixWebhookHandler:
 
         return hmac.compare_digest(expected, signature.lower())
 
-    def process_event(self, event_data: dict) -> Optional[PixPaymentReceived]:
+    def process_event(self, event_data: dict) -> PixPaymentReceived | None:
         """Process a Stark Bank webhook event.
 
         Args:

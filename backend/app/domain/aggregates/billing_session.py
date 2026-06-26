@@ -1,4 +1,3 @@
-from typing import Optional
 
 from app.domain.events.base import DomainEvent
 from app.domain.events.billing_events import (
@@ -30,7 +29,7 @@ class BillingSessionAggregate:
 
     @staticmethod
     def start(session_id: str, agent_id: str, resource_type: str,
-              provider_id: Optional[str] = None):
+              provider_id: str | None = None):
         session = BillingSessionAggregate(session_id)
         session.provider_id = provider_id
         event = BillingSessionStarted(session_id, agent_id, resource_type)
@@ -40,7 +39,7 @@ class BillingSessionAggregate:
 
     def record_consumption(self, amount: int,
                            cost_micro_usdc: int = 0,
-                           provider_id: Optional[str] = None) -> None:
+                           provider_id: str | None = None) -> None:
         """Registra consumo de recurso com semântica DePIN.
 
         Args:

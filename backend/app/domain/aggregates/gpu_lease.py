@@ -1,7 +1,6 @@
 """GPU Lease aggregate — manages GPU leasing lifecycle via io.net."""
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Optional
 
 from app.domain.events.base import DomainEvent
 from app.domain.events.gpu_events import (
@@ -42,14 +41,14 @@ class GPULeaseAggregate:
     gpu_count: int = 0
     vram_gb: int = 0
     duration_hours: int = 0
-    deployment_id: Optional[str] = None
+    deployment_id: str | None = None
     status: str = LeaseStatus.REQUESTED
     total_cost_usdc: float = 0.0
     ionet_fee_usdc: float = 0.0
-    created_at: Optional[datetime] = None
-    activated_at: Optional[datetime] = None
-    expires_at: Optional[datetime] = None
-    terminated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    activated_at: datetime | None = None
+    expires_at: datetime | None = None
+    terminated_at: datetime | None = None
     version: int = 0
     _changes: list[DomainEvent] = field(default_factory=list)
 

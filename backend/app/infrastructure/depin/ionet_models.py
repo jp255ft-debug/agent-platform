@@ -1,7 +1,6 @@
 """io.net API data models."""
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 
 @dataclass
@@ -18,9 +17,9 @@ class GPUHardware:
     memory: int
     storage: int
     sold_out: bool = False
-    interconnect: Optional[str] = None
+    interconnect: str | None = None
     nvlink: bool = False
-    deploy_id: Optional[str] = None
+    deploy_id: str | None = None
 
     @classmethod
     def from_api(cls, **kwargs) -> "GPUHardware":
@@ -61,7 +60,7 @@ class DeployResponse:
     """Deployment response from io.net VMaaS."""
     deployment_id: str
     status: str
-    message: Optional[str] = None
+    message: str | None = None
 
 
 @dataclass
@@ -80,17 +79,17 @@ class DeploymentStatus:
 @dataclass
 class HardwareFilter:
     """Filter parameters for listing GPU hardware."""
-    search: Optional[str] = None
-    regions: Optional[list[str]] = None
-    min_gpu_memory: Optional[int] = None
-    max_gpu_memory: Optional[int] = None
-    min_vcpu: Optional[int] = None
-    max_vcpu: Optional[int] = None
-    min_memory: Optional[int] = None
-    max_memory: Optional[int] = None
-    min_storage: Optional[int] = None
-    max_storage: Optional[int] = None
-    supplier: Optional[str] = None  # internal, external
+    search: str | None = None
+    regions: list[str] | None = None
+    min_gpu_memory: int | None = None
+    max_gpu_memory: int | None = None
+    min_vcpu: int | None = None
+    max_vcpu: int | None = None
+    min_memory: int | None = None
+    max_memory: int | None = None
+    min_storage: int | None = None
+    max_storage: int | None = None
+    supplier: str | None = None  # internal, external
 
     def to_dict(self) -> dict:
         """Convert filter to query parameters dict."""

@@ -1,6 +1,5 @@
 """Pydantic schemas for API key management."""
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -9,7 +8,7 @@ class APIKeyCreateRequest(BaseModel):
     """Request to create a new API key for an agent."""
 
     expires_in_days: int = Field(default=90, ge=1, le=365, description="Key expiration in days")
-    label: Optional[str] = Field(default="default", max_length=100, description="Optional label for the key")
+    label: str | None = Field(default="default", max_length=100, description="Optional label for the key")
 
 
 class APIKeyCreateResponse(BaseModel):
@@ -31,7 +30,7 @@ class APIKeyInfo(BaseModel):
     created_at: datetime = Field(..., description="Key creation timestamp")
     expires_at: datetime = Field(..., description="Key expiration timestamp")
     revoked: bool = Field(default=False, description="Whether key is revoked")
-    revoked_at: Optional[datetime] = Field(default=None, description="Revocation timestamp")
+    revoked_at: datetime | None = Field(default=None, description="Revocation timestamp")
     expired: bool = Field(default=False, description="Whether key is expired")
 
 

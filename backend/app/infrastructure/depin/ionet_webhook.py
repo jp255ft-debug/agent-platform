@@ -10,7 +10,6 @@ Receives asynchronous notifications from io.net about deployment state changes:
 This eliminates the need for polling and keeps the GPULeaseAggregate in sync.
 """
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
@@ -30,7 +29,7 @@ WEBHOOK_SECRET = settings.IO_NET_WEBHOOK_SECRET or ""
 
 async def verify_webhook_signature(
     request: Request,
-    x_webhook_signature: Optional[str] = Header(None),
+    x_webhook_signature: str | None = Header(None),
 ) -> None:
     """Verify the webhook signature from io.net.
 

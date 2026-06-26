@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Optional
 
 from redis.asyncio import Redis
 from sqlalchemy import text
@@ -16,7 +15,7 @@ from app.infrastructure.db.repositories.event_store import PostgresEventStore
 class APIKeyRepository:
     """Handles loading and saving APIKeyAggregate using event store + SQL lookup table."""
 
-    def __init__(self, db: AsyncSession, redis: Optional[Redis] = None):
+    def __init__(self, db: AsyncSession, redis: Redis | None = None):
         self._event_store = PostgresEventStore(db)
         self._db = db
         self._redis = redis
@@ -93,7 +92,7 @@ class APIKeyRepository:
                 if self._redis:
                     await self._redis.delete(f"api_key:{event.data['key_id']}")
 
-    async def get_key_hash(self, key_id: str) -> tuple[Optional[str], Optional[str]]:
+    async def get_key_hash(self, key_id: str) -> tuple[str | None, str | None]:
         """Retrieve (agent_id, key_hash) for a given key_id.
 
         Uses Redis cache for fast lookup, falls back to SQL table.

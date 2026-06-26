@@ -1,5 +1,4 @@
 """GPU leasing REST endpoints."""
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -24,11 +23,11 @@ router = APIRouter(prefix="/api/v1/gpu", tags=["GPU Leasing"])
 
 @router.get("/hardware", response_model=list[GPUHardwareResponse])
 async def list_gpu_hardware(
-    search: Optional[str] = None,
-    min_vram: Optional[int] = None,
-    max_price: Optional[float] = None,
+    search: str | None = None,
+    min_vram: int | None = None,
+    max_price: float | None = None,
     handlers: GPUHandlers = Depends(get_gpu_handlers),
-    agent_id: Optional[str] = Depends(validate_api_key),
+    agent_id: str | None = Depends(validate_api_key),
 ):
     """
     List available GPU hardware for leasing on io.net.
@@ -47,7 +46,7 @@ async def list_gpu_hardware(
 async def request_gpu_lease(
     request: GPULeaseRequest,
     handlers: GPUHandlers = Depends(get_gpu_handlers),
-    agent_id: Optional[str] = Depends(validate_api_key),
+    agent_id: str | None = Depends(validate_api_key),
 ):
     """
     Request a GPU lease.
@@ -73,7 +72,7 @@ async def request_gpu_lease(
 async def get_lease_status(
     lease_id: str,
     handlers: GPUHandlers = Depends(get_gpu_handlers),
-    agent_id: Optional[str] = Depends(validate_api_key),
+    agent_id: str | None = Depends(validate_api_key),
 ):
     """Get the status of a GPU lease."""
     try:
@@ -90,7 +89,7 @@ async def extend_lease(
     lease_id: str,
     request: ExtendLeaseRequest,
     handlers: GPUHandlers = Depends(get_gpu_handlers),
-    agent_id: Optional[str] = Depends(validate_api_key),
+    agent_id: str | None = Depends(validate_api_key),
 ):
     """Extend the duration of an active GPU lease."""
     command = ExtendLeaseCommand(
@@ -111,7 +110,7 @@ async def extend_lease(
 async def terminate_lease(
     lease_id: str,
     handlers: GPUHandlers = Depends(get_gpu_handlers),
-    agent_id: Optional[str] = Depends(validate_api_key),
+    agent_id: str | None = Depends(validate_api_key),
 ):
     """Terminate a GPU lease early (kill-switch)."""
     command = TerminateLeaseCommand(lease_id=lease_id, agent_id=agent_id)

@@ -1,5 +1,4 @@
 """Resource consumption schemas."""
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -9,7 +8,7 @@ class ConsumeRequest(BaseModel):
     resource_type: str = Field(..., description="Type of resource (e.g., 'compute', 'storage', 'bandwidth')")
     amount: int = Field(..., gt=0, description="Amount of resource to consume")
     x402_payment: dict = Field(..., description="x402 payment proof (signed receipt)")
-    idempotency_key: Optional[str] = Field(None, description="Idempotency key for safe retries")
+    idempotency_key: str | None = Field(None, description="Idempotency key for safe retries")
 
 
 class ConsumeResponse(BaseModel):

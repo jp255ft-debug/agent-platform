@@ -2,7 +2,6 @@
 
 Based on BUILD_GUIDE.md §16 — Camada 11: Integração com Sistema Financeiro Brasileiro.
 """
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -19,11 +18,11 @@ class PixQRCodeRequest(BaseModel):
         ..., min_length=1, max_length=50,
         description="Name of the person/entity making the payment",
     )
-    payer_document: Optional[str] = Field(
+    payer_document: str | None = Field(
         None, max_length=18,
         description="CPF (###.###.###-##) or CNPJ (##.###.###/####-##) of payer",
     )
-    agent_id: Optional[str] = Field(
+    agent_id: str | None = Field(
         None, description="Agent ID to associate with this payment",
     )
     expires_in: int = Field(
@@ -49,9 +48,9 @@ class PixStatusResponse(BaseModel):
     qr_code_id: str = Field(..., description="QR Code identifier")
     status: str = Field(..., description="Payment status (created/paid/expired/canceled)")
     amount: float = Field(..., description="Original amount in BRL")
-    paid_amount: Optional[float] = Field(None, description="Amount actually paid")
-    paid_at: Optional[str] = Field(None, description="Timestamp of payment")
-    payer_name: Optional[str] = Field(None, description="Name of the payer")
+    paid_amount: float | None = Field(None, description="Amount actually paid")
+    paid_at: str | None = Field(None, description="Timestamp of payment")
+    payer_name: str | None = Field(None, description="Name of the payer")
 
 
 class PixWebhookEvent(BaseModel):
@@ -63,9 +62,9 @@ class PixWebhookEvent(BaseModel):
     id: str = Field(..., description="Event ID")
     status: str = Field(..., description="Event status (created/paid/expired)")
     amount: float = Field(..., description="Amount in BRL")
-    agent_id: Optional[str] = Field(None, description="Associated agent ID")
-    payer_name: Optional[str] = Field(None, description="Payer name")
-    payer_document: Optional[str] = Field(None, description="Payer CPF/CNPJ")
-    paid_at: Optional[str] = Field(None, description="Payment timestamp")
-    created: Optional[str] = Field(None, description="Event creation timestamp")
-    signature: Optional[str] = Field(None, description="HMAC signature for verification")
+    agent_id: str | None = Field(None, description="Associated agent ID")
+    payer_name: str | None = Field(None, description="Payer name")
+    payer_document: str | None = Field(None, description="Payer CPF/CNPJ")
+    paid_at: str | None = Field(None, description="Payment timestamp")
+    created: str | None = Field(None, description="Event creation timestamp")
+    signature: str | None = Field(None, description="HMAC signature for verification")

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, status
 
@@ -32,8 +31,8 @@ async def create_api_key(
     agent_id: str,
     request: APIKeyCreateRequest,
     repo: APIKeyRepository = Depends(get_api_key_repository),
-    authenticated_agent: Optional[str] = Depends(validate_api_key),
-    x_bootstrap_key: Optional[str] = Header(None),
+    authenticated_agent: str | None = Depends(validate_api_key),
+    x_bootstrap_key: str | None = Header(None),
 ):
     """Create a new API key for an agent.
 
@@ -93,8 +92,8 @@ async def create_api_key(
 async def list_api_keys(
     agent_id: str,
     repo: APIKeyRepository = Depends(get_api_key_repository),
-    authenticated_agent: Optional[str] = Depends(validate_api_key),
-    x_bootstrap_key: Optional[str] = Header(None),
+    authenticated_agent: str | None = Depends(validate_api_key),
+    x_bootstrap_key: str | None = Header(None),
 ):
     """List all API keys for an agent (public info only, no plain keys).
 
@@ -140,8 +139,8 @@ async def revoke_api_key(
     key_id: str,
     request: APIKeyRevokeRequest,
     repo: APIKeyRepository = Depends(get_api_key_repository),
-    authenticated_agent: Optional[str] = Depends(validate_api_key),
-    x_bootstrap_key: Optional[str] = Header(None),
+    authenticated_agent: str | None = Depends(validate_api_key),
+    x_bootstrap_key: str | None = Header(None),
 ):
     """Revoke an API key.
 
@@ -177,8 +176,8 @@ async def rotate_api_key(
     agent_id: str,
     key_id: str,
     repo: APIKeyRepository = Depends(get_api_key_repository),
-    authenticated_agent: Optional[str] = Depends(validate_api_key),
-    x_bootstrap_key: Optional[str] = Header(None),
+    authenticated_agent: str | None = Depends(validate_api_key),
+    x_bootstrap_key: str | None = Header(None),
 ):
     """Rotate an API key: revoke old, create new.
 

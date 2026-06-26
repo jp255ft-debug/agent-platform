@@ -9,7 +9,6 @@ Endpoints:
 """
 import logging
 from decimal import Decimal
-from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException
 
@@ -79,7 +78,7 @@ async def create_pix_qrcode(request: PixQRCodeRequest):
 @router.post("/webhook")
 async def pix_webhook(
     event: PixWebhookEvent,
-    x_signature: Optional[str] = Header(None),
+    x_signature: str | None = Header(None),
 ):
     """Receive Pix payment confirmation webhook from Stark Bank.
 

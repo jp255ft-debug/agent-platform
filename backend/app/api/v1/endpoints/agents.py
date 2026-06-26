@@ -1,5 +1,4 @@
 """Agent management endpoints."""
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import text
@@ -57,7 +56,7 @@ async def register_agent(
 
 @router.get("", response_model=list[AgentResponse])
 async def list_agents(
-    owner_address: Optional[str] = Query(None, description="Filter by owner Ethereum address"),
+    owner_address: str | None = Query(None, description="Filter by owner Ethereum address"),
     db: AsyncSession = Depends(get_db_session),
 ):
     """List agents, optionally filtered by owner_address."""

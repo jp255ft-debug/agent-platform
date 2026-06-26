@@ -1,6 +1,5 @@
 """GPU leasing commands."""
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -10,7 +9,7 @@ class LeaseGPUCommand:
     hardware_id: str
     duration_hours: int
     gpu_count: int = 1
-    max_budget_usdc: Optional[float] = None
+    max_budget_usdc: float | None = None
 
 
 @dataclass

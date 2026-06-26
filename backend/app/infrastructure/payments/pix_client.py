@@ -13,7 +13,6 @@ Environment variables:
     STARK_BANK_WEBHOOK_URL: URL for Pix payment webhooks
 """
 from decimal import Decimal
-from typing import Optional
 
 import httpx
 
@@ -39,9 +38,9 @@ class PixClient:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        environment: Optional[str] = None,
-        webhook_url: Optional[str] = None,
+        api_key: str | None = None,
+        environment: str | None = None,
+        webhook_url: str | None = None,
     ):
         """Initialize Pix client.
 
@@ -73,7 +72,7 @@ class PixClient:
         amount: Decimal,
         description: str,
         payer_name: str,
-        payer_document: Optional[str] = None,
+        payer_document: str | None = None,
         expires_in: int = 3600,
     ) -> dict:
         """Generate a dynamic Pix QR Code.
@@ -186,9 +185,9 @@ class PixClient:
     async def list_transactions(
         self,
         limit: int = 10,
-        after: Optional[str] = None,
-        before: Optional[str] = None,
-        status: Optional[str] = None,
+        after: str | None = None,
+        before: str | None = None,
+        status: str | None = None,
     ) -> list:
         """List Pix transactions.
 

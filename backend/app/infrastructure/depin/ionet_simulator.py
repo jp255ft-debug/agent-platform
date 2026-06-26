@@ -6,7 +6,7 @@ nenhuma credencial válida da io.net está configurada.
 """
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from app.infrastructure.depin.ionet_models import (
     DeploymentStatus,
@@ -185,7 +185,7 @@ class IonetSimulator:
 
     # ─── VMaaS — GPU Cluster Management ──────────────────────────────────────
 
-    async def list_gpus(self, filters: Optional[HardwareFilter] = None) -> list[GPUHardware]:
+    async def list_gpus(self, filters: HardwareFilter | None = None) -> list[GPUHardware]:
         """Simula listagem de GPUs disponíveis."""
         gpus = [GPUHardware(**h) for h in MOCK_GPUS]
 
@@ -303,8 +303,8 @@ class IonetSimulator:
         self,
         image: str,
         gpu_count: int = 1,
-        env_vars: Optional[dict[str, str]] = None,
-        command: Optional[list[str]] = None,
+        env_vars: dict[str, str] | None = None,
+        command: list[str] | None = None,
     ) -> dict[str, Any]:
         """Simula deploy de container."""
         return {

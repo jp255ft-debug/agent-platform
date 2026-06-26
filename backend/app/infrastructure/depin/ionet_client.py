@@ -1,5 +1,5 @@
 """io.net API client for GPU leasing (VMaaS + CaaS + Intelligence)."""
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -74,7 +74,7 @@ class IonetClient:
     # =========================================================================
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=30))
-    async def list_gpus(self, filters: Optional[HardwareFilter] = None) -> list[GPUHardware]:
+    async def list_gpus(self, filters: HardwareFilter | None = None) -> list[GPUHardware]:
         """
         GET /vmaas/hardware
         List available GPU hardware for leasing.
@@ -156,8 +156,8 @@ class IonetClient:
         self,
         image: str,
         gpu_count: int = 1,
-        env_vars: Optional[dict[str, str]] = None,
-        command: Optional[list[str]] = None,
+        env_vars: dict[str, str] | None = None,
+        command: list[str] | None = None,
     ) -> dict[str, Any]:
         """
         POST /caas/deploy

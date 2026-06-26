@@ -1,7 +1,6 @@
 """PostgreSQL event store implementation."""
 import json
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -21,7 +20,7 @@ class PostgresEventStore(EventStore):
 
     async def append_events(
         self, stream_id: str, events: list[DomainEvent],
-        expected_version: Optional[int] = None,
+        expected_version: int | None = None,
     ) -> None:
         """Append events to a stream with optimistic concurrency control.
 

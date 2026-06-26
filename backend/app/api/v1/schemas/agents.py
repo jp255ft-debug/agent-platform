@@ -1,5 +1,4 @@
 """Agent schemas."""
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -7,13 +6,13 @@ from pydantic import BaseModel, Field
 class AgentCreate(BaseModel):
     agent_id: str = Field(..., description="Unique agent identifier")
     owner_address: str = Field(..., description="Ethereum address of the agent owner")
-    delegation_address: Optional[str] = Field(None, description="Optional EIP-7702 delegation address")
+    delegation_address: str | None = Field(None, description="Optional EIP-7702 delegation address")
 
 
 class AgentResponse(BaseModel):
     agent_id: str
     owner_address: str
-    delegation_address: Optional[str] = None
+    delegation_address: str | None = None
     delegation_active: bool = False
     reputation_score: int = 100
     version: int = 0

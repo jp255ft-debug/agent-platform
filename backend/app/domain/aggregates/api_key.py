@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Optional
 
 from app.domain.events.api_key_events import (
     APIKeyCreated,
@@ -79,7 +78,7 @@ class APIKeyAggregate:
                 self._apply(event)
                 self._changes.append(event)
 
-    def record_usage(self, key_id: str, ip_address: Optional[str] = None) -> None:
+    def record_usage(self, key_id: str, ip_address: str | None = None) -> None:
         """Record API key usage for audit trail."""
         event = APIKeyUsed(
             aggregate_id=self.agent_id,
@@ -151,7 +150,7 @@ class APIKey:
     expires_at: datetime
     created_at: datetime
     revoked: bool = False
-    revoked_at: Optional[datetime] = None
+    revoked_at: datetime | None = None
     expired: bool = False
-    last_used_at: Optional[datetime] = None
+    last_used_at: datetime | None = None
     usage_count: int = 0

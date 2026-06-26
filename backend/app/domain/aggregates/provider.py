@@ -11,7 +11,7 @@ computacionais em uma rede DePIN, incluindo:
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from app.domain.events.base import DomainEvent
 from app.domain.events.provider_events import (
@@ -102,16 +102,16 @@ class ProviderAggregate:
     """
     provider_id: str
     owner_address: str
-    gpu_specs: Optional[GPUSpecs] = None
+    gpu_specs: GPUSpecs | None = None
     status: ProviderStatus = ProviderStatus.PENDING
     reputation_score: int = 100       # 0-100, começa em 100
     staked_amount: int = 0            # Em micro USDC
     total_uptime_seconds: int = 0
     total_jobs_completed: int = 0
     total_jobs_failed: int = 0
-    last_health_report: Optional[datetime] = None
-    registered_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    last_health_report: datetime | None = None
+    registered_at: datetime | None = None
+    updated_at: datetime | None = None
     version: int = 0
     _changes: list[DomainEvent] = field(default_factory=list)
 
@@ -227,7 +227,7 @@ class ProviderAggregate:
         self,
         uptime_seconds: int,
         is_online: bool,
-        gpu_stats: Optional[dict[str, Any]] = None,
+        gpu_stats: dict[str, Any] | None = None,
     ) -> None:
         """Recebe relatório de telemetria do nó via gRPC.
 
@@ -396,7 +396,7 @@ class ProviderAggregate:
         agent_id: str,
         success: bool,
         compute_time_seconds: int,
-        proof_hash: Optional[str] = None,
+        proof_hash: str | None = None,
     ) -> None:
         """Registra a conclusão de um job de computação.
 
